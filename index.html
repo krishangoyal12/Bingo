@@ -49,6 +49,7 @@
       <div class="game-selector-wrap is-hidden" id="gameSelector">
         <button class="btn btn-tab active" id="btnBingoTab">Bingo</button>
         <button class="btn btn-tab" id="btnTTTTab">Tic Tac Toe</button>
+        <button class="btn btn-tab" id="btnChopsticksTab">Chopsticks</button>
       </div>
 
       <!-- Lobby -->
@@ -151,6 +152,67 @@
             <div class="glass-badge" id="tttPlayerOBadge">
               <span class="muted">Player O</span>
               <span class="highlight" id="tttPlayerOName">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chopsticks Panel -->
+        <div class="player-panel chopsticks-panel is-hidden" id="chopsticksPanel">
+          <div class="panel-header">
+            <div class="glass-badge turn-badge" id="chopsticksTurnIndicator">Waiting</div>
+            <div class="glass-badge line-badge">
+              <span class="muted">Match Score</span>
+              <span class="highlight"><span id="chopScoreA">0</span> - <span id="chopScoreB">0</span></span>
+            </div>
+          </div>
+
+          <!-- Opponent Hands -->
+          <div class="chopsticks-section opponent-section">
+            <div class="player-label-small" id="chopOppLabel">Opponent Hands</div>
+            <div class="hands-container">
+              <div class="hand-card locked" id="chopOppLeftHand" data-hand="left">
+                <div class="hand-title">LEFT</div>
+                <div class="hand-display">●</div>
+              </div>
+              <div class="hand-card locked" id="chopOppRightHand" data-hand="right">
+                <div class="hand-title">RIGHT</div>
+                <div class="hand-display">●</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Central Info / Action Bar -->
+          <div class="chopsticks-middle">
+            <div class="action-status" id="chopActionStatus">YOUR TURN: Select a hand to attack</div>
+            <div class="chopsticks-controls">
+              <button class="btn btn-secondary" id="btnChopRedistribute">Redistribute</button>
+              <button class="btn btn-ghost is-hidden" id="btnChopCancelAction">Cancel</button>
+            </div>
+          </div>
+
+          <!-- Your Hands -->
+          <div class="chopsticks-section player-section">
+            <div class="hands-container">
+              <div class="hand-card" id="chopPlayLeftHand" data-hand="left">
+                <div class="hand-title">LEFT</div>
+                <div class="hand-display">●</div>
+              </div>
+              <div class="hand-card" id="chopPlayRightHand" data-hand="right">
+                <div class="hand-title">RIGHT</div>
+                <div class="hand-display">●</div>
+              </div>
+            </div>
+            <div class="player-label-small" id="chopPlayLabel">Your Hands</div>
+          </div>
+
+          <!-- Redistribution Overlay -->
+          <div class="redistribute-overlay is-hidden" id="chopRedistributeOverlay">
+            <div class="glass-card redistribute-card">
+              <h3>Choose Distribution</h3>
+              <div class="distribution-options" id="chopDistributionOptions">
+                <!-- Options dynamically injected -->
+              </div>
+              <button class="btn btn-ghost btn-tiny" id="btnChopCloseRedistribute">Cancel</button>
             </div>
           </div>
         </div>

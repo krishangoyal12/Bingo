@@ -89,6 +89,12 @@ function checkTTTWin(board) {
     return null;
 }
 
+function checkChopsticksWin(chopsticks) {
+    if (chopsticks.A.left === 0 && chopsticks.A.right === 0) return "B"; // B wins
+    if (chopsticks.B.left === 0 && chopsticks.B.right === 0) return "A"; // A wins
+    return null;
+}
+
 function clearTurnTimer(room) {
     if (room.turnTimer) {
         clearTimeout(room.turnTimer);
@@ -157,6 +163,7 @@ function buildState(roomId) {
         turnDeadline: room.turnDeadline,
         gameType: room.gameType || "bingo",
         tttBoard: room.tttBoard || Array(9).fill(null),
+        chopsticks: room.chopsticks || { A: { left: 1, right: 1 }, B: { left: 1, right: 1 } },
         score: room.score || { A: 0, B: 0 },
         players: {
             A: {
@@ -202,6 +209,7 @@ function resetRoom(room) {
     room.turn = "A";
     room.round += 1;
     room.tttBoard = Array(9).fill(null);
+    room.chopsticks = { A: { left: 1, right: 1 }, B: { left: 1, right: 1 } };
 }
 
 function removePlayer(roomId, slot) {
@@ -244,6 +252,7 @@ io.on("connection", (socket) => {
             turnDeadline: null,
             gameType: "bingo",
             tttBoard: Array(9).fill(null),
+            chopsticks: { A: { left: 1, right: 1 }, B: { left: 1, right: 1 } },
             score: { A: 0, B: 0 },
         };
 
@@ -400,7 +409,10 @@ io.on("connection", (socket) => {
         const room = rooms.get(roomId);
         if (!room) return;
         
-        if (room.gameType === "tictactoe" && (room.score.A > 0 || room.score.B > 0)) {
+        const isTTTRematch = room.gameType === "tictactoe" && (room.score.A > 0 || room.score.B > 0);
+        const isChopRematch = room.gameType === "chopsticks" && (room.score.A > 0 || room.score.B > 0);
+        
+        if (isTTTRematch || isChopRematch) {
             clearTurnTimer(room);
             room.ready.A = true;
             room.ready.B = true;
@@ -411,6 +423,7 @@ io.on("connection", (socket) => {
             room.called.clear();
             room.winner = null;
             room.tttBoard = Array(9).fill(null);
+            room.chopsticks = { A: { left: 1, right: 1 }, B: { left: 1, right: 1 } };
             room.round += 1;
             room.status = "playing";
             // Alternate starting player based on round
@@ -427,17 +440,18 @@ io.on("connection", (socket) => {
         const roomId = socket.data.roomId;
         const room = rooms.get(roomId);
         if (!room) return;
-        if (room.status !== "setup") {
+        if (room.status !== "setup" && room.status !== "finished") {
             socket.emit("errorMessage", "Cannot change game type mid-game.");
             return;
         }
-        if (gameType !== "bingo" && gameType !== "tictactoe") {
+        if (gameType !== "bingo" && gameType !== "tictactoe" && gameType !== "chopsticks") {
             socket.emit("errorMessage", "Invalid game type.");
             return;
         }
         
         const oldGameType = room.gameType;
         room.gameType = gameType;
+        room.status = "setup";
         
         // Reset round setup
         room.ready.A = false;
@@ -449,6 +463,7 @@ io.on("connection", (socket) => {
         room.called.clear();
         room.winner = null;
         room.tttBoard = Array(9).fill(null);
+        room.chopsticks = { A: { left: 1, right: 1 }, B: { left: 1, right: 1 } };
         room.turn = "A";
         clearTurnTimer(room);
         
@@ -467,16 +482,21 @@ io.on("connection", (socket) => {
         const room = rooms.get(roomId);
         if (!room || !slot) return;
         if (room.status !== "setup") return;
-        if (room.gameType !== "tictactoe") {
-            socket.emit("errorMessage", "Ready state only toggled directly in Tic Tac Toe.");
+        if (room.gameType !== "tictactoe" && room.gameType !== "chopsticks") {
+            socket.emit("errorMessage", "Ready state only toggled directly in setup-free modes.");
             return;
         }
         
         room.ready[slot] = ready === true;
         if (room.ready.A && room.ready.B) {
             room.status = "playing";
-            room.turn = "A";
-            room.tttBoard = Array(9).fill(null);
+            // Randomly choose starting player
+            room.turn = Math.random() < 0.5 ? "A" : "B";
+            if (room.gameType === "tictactoe") {
+                room.tttBoard = Array(9).fill(null);
+            } else if (room.gameType === "chopsticks") {
+                room.chopsticks = { A: { left: 1, right: 1 }, B: { left: 1, right: 1 } };
+            }
             startTurnTimer(roomId);
         }
         broadcastState(roomId);
@@ -529,6 +549,120 @@ io.on("connection", (socket) => {
                 startTurnTimer(roomId);
             }
         }
+        
+        broadcastState(roomId);
+    });
+
+    socket.on("makeChopsticksAttack", ({ fromHand, toHand }) => {
+        const roomId = socket.data.roomId;
+        const slot = socket.data.playerSlot;
+        const room = rooms.get(roomId);
+        if (!room || !slot) return;
+        if (room.gameType !== "chopsticks") return;
+        if (room.status !== "playing") {
+            socket.emit("errorMessage", "Game not active.");
+            return;
+        }
+        if (room.turn !== slot) {
+            socket.emit("errorMessage", "Not your turn.");
+            return;
+        }
+        if (fromHand !== "left" && fromHand !== "right") return;
+        if (toHand !== "left" && toHand !== "right") return;
+        
+        const otherSlot = slot === "A" ? "B" : "A";
+        const attackerVal = room.chopsticks[slot][fromHand];
+        const defenderVal = room.chopsticks[otherSlot][toHand];
+        
+        if (attackerVal <= 0) {
+            socket.emit("errorMessage", "Attacking hand is dead.");
+            return;
+        }
+        if (defenderVal <= 0) {
+            socket.emit("errorMessage", "Defender hand is already dead.");
+            return;
+        }
+        
+        // Execute attack
+        const newVal = (attackerVal + defenderVal) % 5;
+        room.chopsticks[otherSlot][toHand] = newVal;
+        
+        // Check win
+        const winnerSlot = checkChopsticksWin(room.chopsticks);
+        if (winnerSlot) {
+            room.status = "finished";
+            room.winner = winnerSlot;
+            room.score[winnerSlot] += 1;
+            clearTurnTimer(room);
+        } else {
+            // Alternate turn
+            room.turn = otherSlot;
+            startTurnTimer(roomId);
+        }
+        
+        broadcastState(roomId);
+    });
+
+    socket.on("makeChopsticksRedistribute", ({ left, right }) => {
+        const roomId = socket.data.roomId;
+        const slot = socket.data.playerSlot;
+        const room = rooms.get(roomId);
+        if (!room || !slot) return;
+        if (room.gameType !== "chopsticks") return;
+        if (room.status !== "playing") {
+            socket.emit("errorMessage", "Game not active.");
+            return;
+        }
+        if (room.turn !== slot) {
+            socket.emit("errorMessage", "Not your turn.");
+            return;
+        }
+        
+        const l = Number(left);
+        const r = Number(right);
+        if (!Number.isInteger(l) || l < 0 || l > 4) return;
+        if (!Number.isInteger(r) || r < 0 || r > 4) return;
+        
+        const oldLeft = room.chopsticks[slot].left;
+        const oldRight = room.chopsticks[slot].right;
+        
+        // Only allow redistribution if one hand is dead
+        if (oldLeft !== 0 && oldRight !== 0) {
+            socket.emit("errorMessage", "Redistribution is only allowed when one of your hands is dead.");
+            return;
+        }
+        
+        // Alive hand must have more than 1 finger to split
+        const aliveVal = oldLeft !== 0 ? oldLeft : oldRight;
+        if (aliveVal <= 1) {
+            socket.emit("errorMessage", "Your alive hand needs more than 1 finger to redistribute.");
+            return;
+        }
+        
+        // Both hands must end up alive after redistribution
+        if (l <= 0 || r <= 0) {
+            socket.emit("errorMessage", "Both hands must be alive after redistribution.");
+            return;
+        }
+        
+        // Sum conservation
+        if (l + r !== oldLeft + oldRight) {
+            socket.emit("errorMessage", "Total fingers must remain unchanged.");
+            return;
+        }
+        // State difference
+        if (l === oldLeft && r === oldRight) {
+            socket.emit("errorMessage", "Must produce a different state.");
+            return;
+        }
+        
+        // Update hands
+        room.chopsticks[slot].left = l;
+        room.chopsticks[slot].right = r;
+        
+        // Alternate turn
+        room.turn = slot === "A" ? "B" : "A";
+        startTurnTimer(roomId);
         
         broadcastState(roomId);
     });

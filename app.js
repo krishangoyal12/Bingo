@@ -60,6 +60,24 @@ const ui = {
     closeRulesBtn: byId("closeRulesBtn"),
     rulesBody: byId("rulesBody"),
     rulesTitle: byId("rulesTitle"),
+    // Added for Chopsticks:
+    btnChopsticksTab: byId("btnChopsticksTab"),
+    chopsticksPanel: byId("chopsticksPanel"),
+    chopsticksTurnIndicator: byId("chopsticksTurnIndicator"),
+    chopScoreA: byId("chopScoreA"),
+    chopScoreB: byId("chopScoreB"),
+    chopOppLabel: byId("chopOppLabel"),
+    chopOppLeftHand: byId("chopOppLeftHand"),
+    chopOppRightHand: byId("chopOppRightHand"),
+    chopActionStatus: byId("chopActionStatus"),
+    btnChopRedistribute: byId("btnChopRedistribute"),
+    btnChopCancelAction: byId("btnChopCancelAction"),
+    chopPlayLeftHand: byId("chopPlayLeftHand"),
+    chopPlayRightHand: byId("chopPlayRightHand"),
+    chopPlayLabel: byId("chopPlayLabel"),
+    chopRedistributeOverlay: byId("chopRedistributeOverlay"),
+    chopDistributionOptions: byId("chopDistributionOptions"),
+    btnChopCloseRedistribute: byId("btnChopCloseRedistribute"),
 };
 
 const localState = {
@@ -67,7 +85,10 @@ const localState = {
     next: 1,
     ready: false,
     layoutId: null,
+    selectedChopHand: null,
 };
+
+let lastChopsticksState = null;
 
 let sessionId = localStorage.getItem("sessionId");
 if (!sessionId) {
@@ -393,6 +414,25 @@ let lastStatus = null;
 let wasOppConnected = false;
 let lastTTTMoveCount = 0;
 
+function sfxChopAttack() {
+    const ctx = getAudioCtx();
+    const t = ctx.currentTime;
+    playNote(600, 0.12, t, 0.05, "sine");
+    playNote(900, 0.10, t + 0.03, 0.08, "triangle");
+    playNoiseBurst(0.08, t, 0.02);
+}
+
+function sfxChopRedistribute() {
+    const ctx = getAudioCtx();
+    const t = ctx.currentTime;
+    playNoiseBurst(0.08, t, 0.02);
+    playNoiseBurst(0.08, t + 0.05, 0.02);
+    playNoiseBurst(0.08, t + 0.10, 0.02);
+    playNote(400, 0.05, t, 0.03, "triangle");
+    playNote(500, 0.05, t + 0.05, 0.03, "triangle");
+    playNote(600, 0.05, t + 0.10, 0.03, "triangle");
+}
+
 // 1. Hover Interactive Element - Very soft tick (10%)
 function sfxHover() {
     const ctx = getAudioCtx();
@@ -652,6 +692,7 @@ function resetLocalBoard() {
     localState.next = 1;
     localState.ready = false;
     localState.layoutId = null;
+    localState.selectedChopHand = null;
     ui.nextNumber.textContent = "1";
     ui.readyBtn.disabled = true;
     ui.saveLayoutBtn.classList.add("is-hidden");
@@ -907,13 +948,14 @@ function render() {
     lastStatus = serverState.status;
 
     // Toggle panel visibility and Selector active states
-    const isBingo = serverState.gameType === "bingo";
-    ui.gameSelector.classList.toggle("is-hidden", serverState.status !== "setup");
-    ui.btnBingoTab.classList.toggle("active", isBingo);
-    ui.btnTTTTab.classList.toggle("active", !isBingo);
+    ui.gameSelector.classList.toggle("is-hidden", serverState.status === "playing");
+    ui.btnBingoTab.classList.toggle("active", serverState.gameType === "bingo");
+    ui.btnTTTTab.classList.toggle("active", serverState.gameType === "tictactoe");
+    ui.btnChopsticksTab.classList.toggle("active", serverState.gameType === "chopsticks");
 
-    if (isBingo) {
+    if (serverState.gameType === "bingo") {
         ui.tttPanel.classList.add("is-hidden");
+        ui.chopsticksPanel.classList.add("is-hidden");
         ui.bingoPlayerPanel.classList.remove("is-hidden");
         ui.nextNumber.closest(".next-number-badge")?.classList.remove("is-hidden");
 
@@ -1002,10 +1044,11 @@ function render() {
         localState.ready = !!youInfo.ready;
         ui.nextNumber.textContent = youInfo.ready ? "done" : String(localState.next);
 
-    } else {
+    } else if (serverState.gameType === "tictactoe") {
         // Tic Tac Toe Mode
         ui.bingoPlayerPanel.classList.add("is-hidden");
         ui.oppBoardWrap.classList.add("is-hidden");
+        ui.chopsticksPanel.classList.add("is-hidden");
         ui.nextNumber.closest(".next-number-badge")?.classList.add("is-hidden");
         if (ui.layoutRow) ui.layoutRow.classList.add("is-hidden");
         ui.tttPanel.classList.remove("is-hidden");
@@ -1065,25 +1108,53 @@ function render() {
         ui.readyBtn.classList.toggle("is-hidden", serverState.status !== "setup");
         localState.ready = !!youInfo.ready;
         ui.nextNumber.textContent = youInfo.ready ? "done" : "play";
+    } else {
+        // Chopsticks Mode
+        ui.bingoPlayerPanel.classList.add("is-hidden");
+        ui.oppBoardWrap.classList.add("is-hidden");
+        ui.tttPanel.classList.add("is-hidden");
+        ui.nextNumber.closest(".next-number-badge")?.classList.add("is-hidden");
+        if (ui.layoutRow) ui.layoutRow.classList.add("is-hidden");
+        ui.chopsticksPanel.classList.remove("is-hidden");
+
+        renderChopsticks();
     }
 
     // Win screen
     if (serverState.status === "finished" && !hasShownWinScreen) {
         hasShownWinScreen = true;
         const winner = serverState.winner;
+        const gameType = serverState.gameType;
+
+        const winSubMap = {
+            bingo: "You completed 5 lines first!",
+            tictactoe: "You got 3 in a row!",
+            chopsticks: "You eliminated both opponent hands!",
+        };
+        const loseSubMap = {
+            bingo: "Opponent completed 5 lines first",
+            tictactoe: "Opponent got 3 in a row",
+            chopsticks: "Both your hands were eliminated",
+        };
+        const tieSubMap = {
+            bingo: "Both hit 5 lines at the same time",
+            tictactoe: "No spaces left on the board",
+            chopsticks: "It's a draw",
+        };
+
         if (winner === "TIE") {
             ui.winnerTitle.textContent = "Tie game!";
-            ui.winnerSub.textContent = isBingo ? "Both hit 5 lines at the same time" : "No spaces left on the board";
+            ui.winnerSub.textContent = tieSubMap[gameType] || "Game over";
             launchConfetti();
             sfxTie();
         } else if (winner === you) {
             ui.winnerTitle.textContent = "🎉 You won! 🎉";
-            ui.winnerSub.textContent = isBingo ? "You completed 5 lines first!" : "You got 3 in a row!";
+            ui.winnerSub.textContent = winSubMap[gameType] || "You win!";
             launchConfetti();
             sfxVictory();
         } else {
             ui.winnerTitle.textContent = "You lost";
-            ui.winnerSub.textContent = isBingo ? "Opponent completed 5 lines first" : "Opponent got 3 in a row";
+            ui.winnerSub.textContent = loseSubMap[gameType] || "Better luck next time";
             sfxDefeat();
         }
         ui.winnerOverlay.classList.remove("is-hidden");
@@ -1091,6 +1162,7 @@ function render() {
         hasShownWinScreen = false;
         ui.winnerOverlay.classList.add("is-hidden");
     }
+
 
     checkAndConnectVoice();
 }
@@ -1142,6 +1214,7 @@ function setupSocket() {
             lastCalledCount = 0;
             lastOppLineCount = 0;
             lastTTTMoveCount = 0;
+            lastChopsticksState = null;
             hasShownWinScreen = false;
         }
         if (roomId !== state.roomId) {
@@ -1274,7 +1347,7 @@ ui.clearLayoutBtn.addEventListener("click", () => {
 ui.readyBtn.addEventListener("click", () => {
     if (!roomId || !socket) return;
     sfxReadyPressed();
-    if (serverState && serverState.gameType === "tictactoe") {
+    if (serverState && (serverState.gameType === "tictactoe" || serverState.gameType === "chopsticks")) {
         socket.emit("setReady", { ready: true });
         return;
     }
@@ -1332,6 +1405,358 @@ ui.btnTTTTab.addEventListener("click", () => {
     socket.emit("setGameType", { gameType: "tictactoe" });
 });
 
+ui.btnChopsticksTab.addEventListener("click", () => {
+    sfxButtonClick();
+    socket.emit("setGameType", { gameType: "chopsticks" });
+});
+
+function getHandDisplay(value) {
+    if (value === 0) return "☠";
+    return Array(value).fill("●").join(" ");
+}
+
+function getHandElement(slot, hand) {
+    if (slot === playerSlot) {
+        return hand === "left" ? ui.chopPlayLeftHand : ui.chopPlayRightHand;
+    } else {
+        return hand === "left" ? ui.chopOppLeftHand : ui.chopOppRightHand;
+    }
+}
+
+function updateHandCard(el, value, isLocked) {
+    const displayEl = el.querySelector(".hand-display");
+    if (displayEl) {
+        displayEl.textContent = getHandDisplay(value);
+    }
+    el.classList.toggle("dead", value === 0);
+    el.classList.toggle("locked", isLocked);
+}
+
+function launchAttackAnimation(fromEl, toEl, newVal, callback) {
+    const token = document.createElement("div");
+    token.className = "flying-token";
+    
+    const fromRect = fromEl.getBoundingClientRect();
+    const toRect = toEl.getBoundingClientRect();
+    
+    const startX = fromRect.left + fromRect.width / 2 - 7;
+    const startY = fromRect.top + fromRect.height / 2 - 7;
+    
+    const endX = toRect.left + toRect.width / 2 - 7;
+    const endY = toRect.top + toRect.height / 2 - 7;
+    
+    token.style.left = `${startX}px`;
+    token.style.top = `${startY}px`;
+    
+    document.body.appendChild(token);
+    
+    // Force reflow
+    token.getBoundingClientRect();
+    token.style.transform = `translate(${endX - startX}px, ${endY - startY}px)`;
+    
+    sfxChopAttack();
+    
+    setTimeout(() => {
+        token.remove();
+        toEl.classList.add("bump-card");
+        
+        const displayEl = toEl.querySelector(".hand-display");
+        if (displayEl) {
+            displayEl.textContent = getHandDisplay(newVal);
+        }
+        toEl.classList.toggle("dead", newVal === 0);
+        
+        sfxNumberMarked();
+        
+        setTimeout(() => {
+            toEl.classList.remove("bump-card");
+            if (callback) callback();
+        }, 400);
+    }, 400);
+}
+
+function getRedistributeOptions(left, right) {
+    const sum = left + right;
+    const options = [];
+    for (let l = 1; l < sum; l++) {  // start from 1, end before sum so both hands are alive
+        const r = sum - l;
+        if (l <= 4 && r <= 4) {
+            if (l !== left || r !== right) {
+                options.push({ left: l, right: r });
+            }
+        }
+    }
+    return options;
+}
+
+function renderChopsticks() {
+    if (!serverState || serverState.gameType !== "chopsticks") return;
+    
+    const you = playerSlot;
+    const opp = you === "A" ? "B" : "A";
+    const youHands = serverState.chopsticks[you] || { left: 1, right: 1 };
+    const oppHands = serverState.chopsticks[opp] || { left: 1, right: 1 };
+    const isYourTurn = serverState.status === "playing" && serverState.turn === you;
+    
+    ui.chopScoreA.textContent = serverState.score?.A || 0;
+    ui.chopScoreB.textContent = serverState.score?.B || 0;
+    
+    const youInfo = serverState.players?.[you] || {};
+    const oppInfo = serverState.players?.[opp] || {};
+    ui.chopPlayLabel.textContent = `${youInfo.name || "You"} (You)`;
+    ui.chopOppLabel.textContent = `${oppInfo.name || "Opponent"} (Opponent)`;
+    
+    if (serverState.status === "setup") {
+        ui.chopsticksTurnIndicator.textContent = "Tap Ready to start duel";
+        ui.timerBar.classList.add("is-hidden");
+        stopTimerAnimation();
+    } else if (serverState.status === "playing") {
+        ui.chopsticksTurnIndicator.textContent = isYourTurn ? "⚡ Your turn to move!" : "⏳ Opponent is deciding...";
+        startTimerAnimation();
+    } else if (serverState.status === "finished") {
+        ui.chopsticksTurnIndicator.textContent = "Game finished";
+        ui.timerBar.classList.add("is-hidden");
+        stopTimerAnimation();
+    }
+    
+    let animatedHand = null;
+    if (lastChopsticksState && serverState.status === "playing") {
+        let changedHands = [];
+        const players = ["A", "B"];
+        const hands = ["left", "right"];
+        for (const p of players) {
+            for (const h of hands) {
+                const oldVal = lastChopsticksState[p]?.[h];
+                const newVal = serverState.chopsticks[p]?.[h];
+                if (oldVal !== undefined && oldVal !== newVal) {
+                    changedHands.push({ player: p, hand: h, oldVal, newVal });
+                }
+            }
+        }
+        
+        if (changedHands.length === 1) {
+            const ch = changedHands[0];
+            const defenderPlayer = ch.player;
+            const defenderHand = ch.hand;
+            const attackerPlayer = defenderPlayer === "A" ? "B" : "A";
+            
+            let attackerHand = "left";
+            const oldDefenderVal = ch.oldVal;
+            const newDefenderVal = ch.newVal;
+            const attackerState = lastChopsticksState[attackerPlayer];
+            
+            if (attackerState) {
+                if (attackerState.left > 0 && (attackerState.left + oldDefenderVal) % 5 === newDefenderVal) {
+                    attackerHand = "left";
+                } else if (attackerState.right > 0 && (attackerState.right + oldDefenderVal) % 5 === newDefenderVal) {
+                    attackerHand = "right";
+                }
+            }
+            
+            const attackerEl = getHandElement(attackerPlayer, attackerHand);
+            const defenderEl = getHandElement(defenderPlayer, defenderHand);
+            
+            animatedHand = defenderEl;
+            
+            const displayEl = defenderEl.querySelector(".hand-display");
+            if (displayEl) {
+                displayEl.textContent = getHandDisplay(ch.oldVal);
+            }
+            defenderEl.classList.toggle("dead", ch.oldVal === 0);
+            
+            launchAttackAnimation(attackerEl, defenderEl, ch.newVal);
+        } else if (changedHands.length === 2) {
+            sfxChopRedistribute();
+        }
+    }
+    
+    const hasSelection = localState.selectedChopHand !== null;
+    
+    const oppLeftLocked = !isYourTurn || !hasSelection || oppHands.left === 0;
+    ui.chopOppLeftHand.classList.toggle("targetable", !oppLeftLocked);
+    if (animatedHand !== ui.chopOppLeftHand) {
+        updateHandCard(ui.chopOppLeftHand, oppHands.left, oppLeftLocked);
+    } else {
+        ui.chopOppLeftHand.classList.toggle("dead", lastChopsticksState[opp].left === 0);
+        ui.chopOppLeftHand.classList.toggle("locked", oppLeftLocked);
+    }
+    
+    const oppRightLocked = !isYourTurn || !hasSelection || oppHands.right === 0;
+    ui.chopOppRightHand.classList.toggle("targetable", !oppRightLocked);
+    if (animatedHand !== ui.chopOppRightHand) {
+        updateHandCard(ui.chopOppRightHand, oppHands.right, oppRightLocked);
+    } else {
+        ui.chopOppRightHand.classList.toggle("dead", lastChopsticksState[opp].right === 0);
+        ui.chopOppRightHand.classList.toggle("locked", oppRightLocked);
+    }
+    
+    const playLeftLocked = !isYourTurn || youHands.left === 0;
+    const playRightLocked = !isYourTurn || youHands.right === 0;
+    
+    if (animatedHand !== ui.chopPlayLeftHand) {
+        updateHandCard(ui.chopPlayLeftHand, youHands.left, playLeftLocked);
+    } else {
+        ui.chopPlayLeftHand.classList.toggle("dead", lastChopsticksState[you].left === 0);
+        ui.chopPlayLeftHand.classList.toggle("locked", playLeftLocked);
+    }
+    
+    if (animatedHand !== ui.chopPlayRightHand) {
+        updateHandCard(ui.chopPlayRightHand, youHands.right, playRightLocked);
+    } else {
+        ui.chopPlayRightHand.classList.toggle("dead", lastChopsticksState[you].right === 0);
+        ui.chopPlayRightHand.classList.toggle("locked", playRightLocked);
+    }
+    
+    ui.chopPlayLeftHand.classList.toggle("selected", localState.selectedChopHand === "left");
+    ui.chopPlayRightHand.classList.toggle("selected", localState.selectedChopHand === "right");
+    
+    if (serverState.status === "setup") {
+        ui.chopActionStatus.textContent = "Waiting for setup...";
+        ui.btnChopRedistribute.classList.add("is-hidden");
+        ui.btnChopCancelAction.classList.add("is-hidden");
+    } else if (serverState.status === "playing") {
+        if (isYourTurn) {
+            if (localState.selectedChopHand === null) {
+                ui.chopActionStatus.textContent = "YOUR TURN: Select a hand to attack or redistribute";
+                ui.btnChopCancelAction.classList.add("is-hidden");
+            } else {
+                ui.chopActionStatus.textContent = "YOUR TURN: Select an opponent's hand to attack";
+                ui.btnChopCancelAction.classList.remove("is-hidden");
+            }
+            const hasDeadHand = youHands.left === 0 || youHands.right === 0;
+            const aliveVal = youHands.left !== 0 ? youHands.left : youHands.right;
+            const canRedistribute = hasDeadHand && aliveVal > 1;
+            const options = canRedistribute ? getRedistributeOptions(youHands.left, youHands.right) : [];
+            ui.btnChopRedistribute.classList.toggle("is-hidden", options.length === 0 || localState.selectedChopHand !== null);
+        } else {
+            ui.chopActionStatus.textContent = "OPPONENT'S TURN";
+            ui.btnChopRedistribute.classList.add("is-hidden");
+            ui.btnChopCancelAction.classList.add("is-hidden");
+            ui.chopRedistributeOverlay.classList.add("is-hidden");
+        }
+    } else {
+        ui.chopActionStatus.textContent = "GAME OVER";
+        ui.btnChopRedistribute.classList.add("is-hidden");
+        ui.btnChopCancelAction.classList.add("is-hidden");
+    }
+    
+    ui.readyBtn.disabled = !!youInfo.ready;
+    ui.readyBtn.classList.toggle("is-hidden", serverState.status !== "setup");
+    localState.ready = !!youInfo.ready;
+    ui.nextNumber.textContent = youInfo.ready ? "done" : "play";
+    
+    lastChopsticksState = JSON.parse(JSON.stringify(serverState.chopsticks));
+}
+
+function handlePlayerHandClick(hand) {
+    if (!serverState || serverState.gameType !== "chopsticks" || serverState.status !== "playing") return;
+    const you = playerSlot;
+    const isYourTurn = serverState.turn === you;
+    if (!isYourTurn) {
+        sfxInvalidAction();
+        return;
+    }
+    const handVal = serverState.chopsticks[you][hand];
+    if (handVal === 0) {
+        sfxInvalidAction();
+        return;
+    }
+    sfxButtonClick();
+    if (localState.selectedChopHand === hand) {
+        localState.selectedChopHand = null;
+    } else {
+        localState.selectedChopHand = hand;
+    }
+    renderChopsticks();
+}
+
+function handleOpponentHandClick(hand) {
+    if (!serverState || serverState.gameType !== "chopsticks" || serverState.status !== "playing") return;
+    const you = playerSlot;
+    const isYourTurn = serverState.turn === you;
+    if (!isYourTurn) {
+        sfxInvalidAction();
+        return;
+    }
+    if (localState.selectedChopHand === null) {
+        sfxInvalidAction();
+        return;
+    }
+    const opp = you === "A" ? "B" : "A";
+    const targetVal = serverState.chopsticks[opp][hand];
+    if (targetVal === 0) {
+        sfxInvalidAction();
+        return;
+    }
+    socket.emit("makeChopsticksAttack", { fromHand: localState.selectedChopHand, toHand: hand });
+    localState.selectedChopHand = null;
+}
+
+function handleOpponentHandHover(hand, isEnter) {
+    if (!serverState || serverState.gameType !== "chopsticks" || serverState.status !== "playing") return;
+    const you = playerSlot;
+    const isYourTurn = serverState.turn === you;
+    if (!isYourTurn || localState.selectedChopHand === null) return;
+    const opp = you === "A" ? "B" : "A";
+    const targetVal = serverState.chopsticks[opp][hand];
+    if (targetVal === 0) return;
+    
+    if (isEnter) {
+        const attackerVal = serverState.chopsticks[you][localState.selectedChopHand];
+        const newVal = (attackerVal + targetVal) % 5;
+        ui.chopActionStatus.innerHTML = `ATTACK: ${attackerVal} + ${targetVal} &rarr; ${newVal}`;
+    } else {
+        ui.chopActionStatus.textContent = "YOUR TURN: Select an opponent's hand to attack";
+    }
+}
+
+ui.chopPlayLeftHand.addEventListener("click", () => handlePlayerHandClick("left"));
+ui.chopPlayRightHand.addEventListener("click", () => handlePlayerHandClick("right"));
+ui.chopOppLeftHand.addEventListener("click", () => handleOpponentHandClick("left"));
+ui.chopOppRightHand.addEventListener("click", () => handleOpponentHandClick("right"));
+
+ui.chopOppLeftHand.addEventListener("mouseenter", () => handleOpponentHandHover("left", true));
+ui.chopOppLeftHand.addEventListener("mouseleave", () => handleOpponentHandHover("left", false));
+ui.chopOppRightHand.addEventListener("mouseenter", () => handleOpponentHandHover("right", true));
+ui.chopOppRightHand.addEventListener("mouseleave", () => handleOpponentHandHover("right", false));
+
+ui.btnChopCancelAction.addEventListener("click", () => {
+    sfxButtonClick();
+    localState.selectedChopHand = null;
+    renderChopsticks();
+});
+
+ui.btnChopRedistribute.addEventListener("click", () => {
+    sfxButtonClick();
+    if (!serverState || serverState.gameType !== "chopsticks" || serverState.status !== "playing") return;
+    const you = playerSlot;
+    const youHands = serverState.chopsticks[you] || { left: 1, right: 1 };
+    
+    const hasDeadHand = youHands.left === 0 || youHands.right === 0;
+    if (!hasDeadHand) return;
+    
+    const options = getRedistributeOptions(youHands.left, youHands.right);
+    ui.chopDistributionOptions.innerHTML = "";
+    options.forEach(opt => {
+        const btn = document.createElement("button");
+        btn.className = "dist-option-btn";
+        btn.innerHTML = `${getHandDisplay(opt.left)} | ${getHandDisplay(opt.right)}`;
+        btn.addEventListener("click", () => {
+            sfxChopRedistribute();
+            socket.emit("makeChopsticksRedistribute", { left: opt.left, right: opt.right });
+            ui.chopRedistributeOverlay.classList.add("is-hidden");
+        });
+        ui.chopDistributionOptions.appendChild(btn);
+    });
+    
+    ui.chopRedistributeOverlay.classList.remove("is-hidden");
+});
+
+ui.btnChopCloseRedistribute.addEventListener("click", () => {
+    sfxButtonClick();
+    ui.chopRedistributeOverlay.classList.add("is-hidden");
+});
+
 function showRules() {
     const gameType = serverState?.gameType || "bingo";
     if (gameType === "tictactoe") {
@@ -1354,6 +1779,29 @@ function showRules() {
                 <li>For the first game (score 0-0), both players must click <strong>READY</strong> to begin.</li>
                 <li>For all subsequent rounds, clicking <strong>Play Again</strong> will instantly clear the board and start the next match, automatically alternating who goes first.</li>
             </ul>
+        `;
+    } else if (gameType === "chopsticks") {
+        ui.rulesTitle.textContent = "Chopsticks Duel Rules";
+        ui.rulesBody.innerHTML = `
+            <h3>Objective</h3>
+            <p>Eliminate both of your opponent's hands by making their finger counts exactly <strong>0</strong>.</p>
+            
+            <h3>Setup Phase</h3>
+            <ul>
+                <li>Both players begin with <strong>1 finger</strong> on each hand: <code>● | ●</code></li>
+                <li>For the first game (score 0-0), both players must click <strong>READY</strong> to begin.</li>
+                <li>For subsequent rounds, clicking <strong>Play Again</strong> starts the match instantly, alternating who goes first.</li>
+            </ul>
+            
+            <h3>Gameplay</h3>
+            <p>On your turn, you must perform exactly <strong>one</strong> of the following actions:</p>
+            <ul>
+                <li><strong>Attack:</strong> Click one of your active hands, then click one of your opponent's active hands. The target hand's value increases by the attacking hand's value. <strong>Values modulo 5 apply:</strong> if a hand reaches 5 or more fingers, it is reduced modulo 5. A hand with 0 fingers is <strong>dead (☠)</strong>.</li>
+                <li><strong>Redistribute:</strong> Click <strong>Redistribute</strong> to transfer fingers between your own two hands. The total sum of fingers must remain the same, and both hands must end up with between 0 and 4 fingers.</li>
+            </ul>
+            
+            <h3>Winning</h3>
+            <p>The first player to reduce both of the opponent's hands to 0 fingers wins the duel!</p>
         `;
     } else {
         ui.rulesTitle.textContent = "Bingo Duel Rules";

@@ -933,3 +933,148 @@ input[type="text"]:focus {
         bottom: 70px; /* Position it above the action area */
     }
 }
+
+/* ── Game Selector Tabs ── */
+.game-selector-wrap {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    padding: 12px;
+    background: #FFFFFF;
+    border-bottom: 3px solid var(--dark);
+    flex-shrink: 0;
+}
+
+.btn-tab {
+    background: #FFFFFF;
+    color: var(--dark);
+    border: 3px solid var(--dark);
+    box-shadow: 4px 4px 0 0 var(--dark);
+    font-weight: 700;
+    padding: 8px 24px;
+    border-radius: 12px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.btn-tab:hover {
+    background: var(--yellow);
+    transform: translate(-1px, -1px);
+    box-shadow: 5px 5px 0 0 var(--dark);
+}
+
+.btn-tab.active {
+    background: var(--yellow);
+    box-shadow: 2px 2px 0 0 var(--dark);
+    transform: translate(2px, 2px);
+    border-color: var(--dark);
+}
+
+/* ── Tic Tac Toe Board ── */
+.board-ttt {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: clamp(8px, 1.5vh, 16px);
+    width: calc((clamp(60px, 10vh, 100px) * 3) + (clamp(8px, 1.5vh, 16px) * 2));
+    height: calc((clamp(60px, 10vh, 100px) * 3) + (clamp(8px, 1.5vh, 16px) * 2));
+    position: relative;
+    margin: 10px auto;
+}
+
+.ttt-cell {
+    background: #FFFFFF;
+    border: 3.5px solid var(--dark);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 0 var(--dark);
+    transition: all 0.1s ease;
+    aspect-ratio: 1;
+}
+
+.ttt-cell:not(.locked):hover {
+    background: var(--yellow);
+    transform: translate(-2px, -2px);
+    box-shadow: 5px 5px 0 0 var(--dark);
+}
+
+.ttt-cell.locked {
+    cursor: default;
+}
+
+.ttt-symbol {
+    font-family: "Bungee", cursive;
+    font-size: clamp(36px, 6vh, 60px);
+    font-weight: 900;
+    line-height: 1;
+    animation: stamp 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    user-select: none;
+}
+
+.symbol-x {
+    color: var(--blue);
+    text-shadow: 3px 3px 0 var(--dark);
+}
+
+.symbol-o {
+    color: var(--red);
+    text-shadow: 3px 3px 0 var(--dark);
+}
+
+.ttt-players-status {
+    display: flex;
+    gap: 16px;
+    width: 100%;
+    justify-content: center;
+    margin-top: 8px;
+}
+
+/* Adjustments for mobile view */
+@media (max-width: 600px) {
+    .game-selector-wrap {
+        gap: 8px;
+        padding: 8px;
+        border-bottom-width: 2px;
+    }
+    
+    .btn-tab {
+        padding: 6px 16px;
+        font-size: 12px;
+        border-width: 2px;
+        box-shadow: 2px 2px 0 0 var(--dark);
+    }
+    
+    .btn-tab.active {
+        box-shadow: 1px 1px 0 0 var(--dark);
+        transform: translate(1px, 1px);
+    }
+    
+    .board-ttt {
+        gap: 8px;
+        width: calc((48px * 3) + (8px * 2));
+        height: calc((48px * 3) + (8px * 2));
+    }
+    
+    .ttt-cell {
+        border-width: 2px;
+        border-radius: 8px;
+        box-shadow: 2px 2px 0 0 var(--dark);
+    }
+    
+    .ttt-cell:not(.locked):hover {
+        transform: none;
+        box-shadow: 2px 2px 0 0 var(--dark);
+    }
+    
+    .ttt-symbol {
+        font-size: 32px;
+        text-shadow: 2px 2px 0 var(--dark);
+    }
+    
+    .ttt-players-status {
+        gap: 8px;
+    }
+}

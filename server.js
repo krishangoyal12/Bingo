@@ -75,6 +75,20 @@ function countLines(board, calledSet) {
     return lines;
 }
 
+function checkTTTWin(board) {
+    const wins = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+        [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+        [0, 4, 8], [2, 4, 6]             // Diagonals
+    ];
+    for (const [a, b, c] of wins) {
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+            return board[a]; // Returns "A" or "B"
+        }
+    }
+    return null;
+}
+
 function clearTurnTimer(room) {
     if (room.turnTimer) {
         clearTimeout(room.turnTimer);
@@ -141,6 +155,9 @@ function buildState(roomId) {
         calledNumbers: Array.from(room.called),
         layoutIds: room.layoutIds,
         turnDeadline: room.turnDeadline,
+        gameType: room.gameType || "bingo",
+        tttBoard: room.tttBoard || Array(9).fill(null),
+        score: room.score || { A: 0, B: 0 },
         players: {
             A: {
                 name: room.players.A?.name || null,
@@ -184,6 +201,7 @@ function resetRoom(room) {
     room.winner = null;
     room.turn = "A";
     room.round += 1;
+    room.tttBoard = Array(9).fill(null);
 }
 
 function removePlayer(roomId, slot) {
@@ -224,6 +242,9 @@ io.on("connection", (socket) => {
             round: 1,
             turnTimer: null,
             turnDeadline: null,
+            gameType: "bingo",
+            tttBoard: Array(9).fill(null),
+            score: { A: 0, B: 0 },
         };
 
         rooms.set(roomId, room);
@@ -334,6 +355,10 @@ io.on("connection", (socket) => {
         const slot = socket.data.playerSlot;
         const room = rooms.get(roomId);
         if (!room || !slot) return;
+        if (room.gameType !== "bingo") {
+            socket.emit("errorMessage", "Not playing Bingo.");
+            return;
+        }
         if (room.status !== "playing") {
             socket.emit("errorMessage", "Game has not started yet.");
             return;
@@ -374,7 +399,137 @@ io.on("connection", (socket) => {
         const roomId = socket.data.roomId;
         const room = rooms.get(roomId);
         if (!room) return;
-        resetRoom(room);
+        
+        if (room.gameType === "tictactoe" && (room.score.A > 0 || room.score.B > 0)) {
+            clearTurnTimer(room);
+            room.ready.A = true;
+            room.ready.B = true;
+            room.boards.A = null;
+            room.boards.B = null;
+            room.layoutIds.A = null;
+            room.layoutIds.B = null;
+            room.called.clear();
+            room.winner = null;
+            room.tttBoard = Array(9).fill(null);
+            room.round += 1;
+            room.status = "playing";
+            // Alternate starting player based on round
+            room.turn = room.round % 2 === 1 ? "A" : "B";
+            startTurnTimer(roomId);
+        } else {
+            resetRoom(room);
+        }
+        
+        broadcastState(roomId);
+    });
+
+    socket.on("setGameType", ({ gameType }) => {
+        const roomId = socket.data.roomId;
+        const room = rooms.get(roomId);
+        if (!room) return;
+        if (room.status !== "setup") {
+            socket.emit("errorMessage", "Cannot change game type mid-game.");
+            return;
+        }
+        if (gameType !== "bingo" && gameType !== "tictactoe") {
+            socket.emit("errorMessage", "Invalid game type.");
+            return;
+        }
+        
+        const oldGameType = room.gameType;
+        room.gameType = gameType;
+        
+        // Reset round setup
+        room.ready.A = false;
+        room.ready.B = false;
+        room.boards.A = null;
+        room.boards.B = null;
+        room.layoutIds.A = null;
+        room.layoutIds.B = null;
+        room.called.clear();
+        room.winner = null;
+        room.tttBoard = Array(9).fill(null);
+        room.turn = "A";
+        clearTurnTimer(room);
+        
+        // Reset score only if changing game type
+        if (oldGameType !== gameType) {
+            room.score.A = 0;
+            room.score.B = 0;
+        }
+        
+        broadcastState(roomId);
+    });
+
+    socket.on("setReady", ({ ready }) => {
+        const roomId = socket.data.roomId;
+        const slot = socket.data.playerSlot;
+        const room = rooms.get(roomId);
+        if (!room || !slot) return;
+        if (room.status !== "setup") return;
+        if (room.gameType !== "tictactoe") {
+            socket.emit("errorMessage", "Ready state only toggled directly in Tic Tac Toe.");
+            return;
+        }
+        
+        room.ready[slot] = ready === true;
+        if (room.ready.A && room.ready.B) {
+            room.status = "playing";
+            room.turn = "A";
+            room.tttBoard = Array(9).fill(null);
+            startTurnTimer(roomId);
+        }
+        broadcastState(roomId);
+    });
+
+    socket.on("makeTTTMove", ({ index }) => {
+        const roomId = socket.data.roomId;
+        const slot = socket.data.playerSlot;
+        const room = rooms.get(roomId);
+        if (!room || !slot) return;
+        if (room.gameType !== "tictactoe") return;
+        if (room.status !== "playing") {
+            socket.emit("errorMessage", "Game not active.");
+            return;
+        }
+        if (room.turn !== slot) {
+            socket.emit("errorMessage", "Not your turn.");
+            return;
+        }
+        const idx = Number(index);
+        if (!Number.isInteger(idx) || idx < 0 || idx > 8) {
+            socket.emit("errorMessage", "Invalid move.");
+            return;
+        }
+        if (room.tttBoard[idx] !== null) {
+            socket.emit("errorMessage", "Cell is already occupied.");
+            return;
+        }
+        
+        // Make move
+        room.tttBoard[idx] = slot;
+        
+        // Check win
+        const winnerSymbol = checkTTTWin(room.tttBoard);
+        if (winnerSymbol) {
+            room.status = "finished";
+            room.winner = winnerSymbol; // "A" or "B"
+            room.score[winnerSymbol] += 1;
+            clearTurnTimer(room);
+        } else {
+            // Check tie
+            const isTie = room.tttBoard.every(cell => cell !== null);
+            if (isTie) {
+                room.status = "finished";
+                room.winner = "TIE";
+                clearTurnTimer(room);
+            } else {
+                // Alternate turn
+                room.turn = slot === "A" ? "B" : "A";
+                startTurnTimer(roomId);
+            }
+        }
+        
         broadcastState(roomId);
     });
 

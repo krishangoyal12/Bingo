@@ -40,6 +40,12 @@
       <!-- Invisible audio element for WebRTC voice -->
       <audio id="remoteAudio" autoplay></audio>
 
+      <!-- Game Selector Navigation -->
+      <div class="game-selector-wrap is-hidden" id="gameSelector">
+        <button class="btn btn-tab active" id="btnBingoTab">Bingo</button>
+        <button class="btn btn-tab" id="btnTTTTab">Tic Tac Toe</button>
+      </div>
+
       <!-- Lobby -->
       <section class="lobby" id="lobby">
         <div class="glass-card lobby-card">
@@ -71,7 +77,7 @@
       <main class="game-area is-hidden" id="game">
         
         <!-- Left Column: Your Area -->
-        <div class="player-panel">
+        <div class="player-panel" id="bingoPlayerPanel">
           <div class="panel-header">
             <div class="glass-badge turn-badge" id="turnIndicator">Waiting</div>
             <div class="glass-badge line-badge">
@@ -115,6 +121,32 @@
               <span class="bingo-letter" id="opp-letter-O">O</span>
             </div>
             <div class="board opp-board" id="oppBoard"></div>
+          </div>
+        </div>
+
+        <!-- Tic Tac Toe Panel -->
+        <div class="player-panel ttt-panel is-hidden" id="tttPanel">
+          <div class="panel-header">
+            <div class="glass-badge turn-badge" id="tttTurnIndicator">Waiting</div>
+            <div class="glass-badge line-badge">
+              <span class="muted">Match Score</span>
+              <span class="highlight"><span id="tttScoreX">0</span> - <span id="tttScoreO">0</span></span>
+            </div>
+          </div>
+          
+          <div class="hero-board">
+            <div class="board board-ttt" id="tttBoard"></div>
+          </div>
+          
+          <div class="ttt-players-status">
+            <div class="glass-badge" id="tttPlayerXBadge">
+              <span class="muted">Player X (Starts)</span>
+              <span class="highlight" id="tttPlayerXName">-</span>
+            </div>
+            <div class="glass-badge" id="tttPlayerOBadge">
+              <span class="muted">Player O</span>
+              <span class="highlight" id="tttPlayerOName">-</span>
+            </div>
           </div>
         </div>
 

@@ -41,6 +41,20 @@ const ui = {
     deafenBtn: byId("deafenBtn"),
     muteGameBtn: byId("muteGameBtn"),
     remoteAudio: byId("remoteAudio"),
+    // Added for Tic Tac Toe:
+    gameSelector: byId("gameSelector"),
+    btnBingoTab: byId("btnBingoTab"),
+    btnTTTTab: byId("btnTTTTab"),
+    tttPanel: byId("tttPanel"),
+    tttBoard: byId("tttBoard"),
+    tttTurnIndicator: byId("tttTurnIndicator"),
+    tttScoreX: byId("tttScoreX"),
+    tttScoreO: byId("tttScoreO"),
+    tttPlayerXName: byId("tttPlayerXName"),
+    tttPlayerOName: byId("tttPlayerOName"),
+    bingoPlayerPanel: byId("bingoPlayerPanel"),
+    tttPlayerXBadge: byId("tttPlayerXBadge"),
+    tttPlayerOBadge: byId("tttPlayerOBadge"),
 };
 
 const localState = {
@@ -372,6 +386,7 @@ let lastOppLineCount = 0;
 let lastTurn = null;
 let lastStatus = null;
 let wasOppConnected = false;
+let lastTTTMoveCount = 0;
 
 // 1. Hover Interactive Element - Very soft tick (10%)
 function sfxHover() {
@@ -637,6 +652,37 @@ function resetLocalBoard() {
     ui.saveLayoutBtn.classList.add("is-hidden");
 }
 
+const tttCells = [];
+function buildTTTBoard(container, onClick) {
+    container.innerHTML = "";
+    tttCells.length = 0;
+    for (let i = 0; i < 9; i += 1) {
+        const cell = document.createElement("div");
+        cell.className = "ttt-cell";
+        cell.dataset.index = String(i);
+        if (onClick) {
+            cell.addEventListener("click", () => onClick(i));
+        }
+        container.appendChild(cell);
+        tttCells.push(cell);
+    }
+}
+
+function handleTTTCellClick(index) {
+    if (!socket || !roomId || !serverState) return;
+    if (serverState.gameType !== "tictactoe") return;
+    if (serverState.status !== "playing") return;
+    if (serverState.turn !== playerSlot) {
+        sfxInvalidAction();
+        return;
+    }
+    if (serverState.tttBoard?.[index] !== null) {
+        sfxInvalidAction();
+        return;
+    }
+    socket.emit("makeTTTMove", { index });
+}
+
 function renderBoard(cells, board, calledSet, locked, isOpponent = false) {
     if (!cells || cells.length === 0) return;
     const container = cells[0].parentNode;
@@ -838,30 +884,7 @@ function render() {
     }
     wasOppConnected = !!oppInfo.connected;
 
-    // Called numbers and sounds
-    const calledSet = new Set(serverState.calledNumbers || []);
-    const currentCalledCount = calledSet.size;
-    const currentLines = serverState.lines?.[you] || 0;
-    const oppCurrentLines = serverState.lines?.[opp] || 0;
-
-    if (currentCalledCount > lastCalledCount && serverState.status === "playing") {
-        sfxNumberMarked();
-    }
-    lastCalledCount = currentCalledCount;
-
-    // Detect Player Line completion
-    if (currentLines > lastLineCount && serverState.status === "playing") {
-        if (currentLines === 4) sfxMatchPoint();
-        else if (currentLines < 5) sfxLineComplete();
-    }
-    lastLineCount = currentLines;
-
-    // Detect Opponent Line completion
-    if (oppCurrentLines > lastOppLineCount && serverState.status === "playing") {
-        if (oppCurrentLines === 4) sfxOppMatchPoint();
-        else if (oppCurrentLines < 5) sfxOppLineComplete();
-    }
-    lastOppLineCount = oppCurrentLines;
+    const isYourTurn = serverState.status === "playing" && serverState.turn === you;
 
     // Detect Turn Changes and Match Start
     if (serverState.status === "playing") {
@@ -878,84 +901,184 @@ function render() {
     lastTurn = serverState.turn;
     lastStatus = serverState.status;
 
-    // Board rendering
-    if (serverState.status === "setup" && !youInfo.ready) {
-        renderPlayerBoard(localState.board, calledSet);
-    } else {
-        renderPlayerBoard(serverState.boards?.[you], calledSet);
-    }
+    // Toggle panel visibility and Selector active states
+    const isBingo = serverState.gameType === "bingo";
+    ui.gameSelector.classList.toggle("is-hidden", serverState.status !== "setup");
+    ui.btnBingoTab.classList.toggle("active", isBingo);
+    ui.btnTTTTab.classList.toggle("active", !isBingo);
 
-    // Opponent Board rendering
-    if (serverState.status === "playing" || serverState.status === "finished") {
-        ui.oppBoardWrap.classList.remove("is-hidden");
-        renderBoard(oppCells, serverState.boards?.[opp], calledSet, true, true);
+    if (isBingo) {
+        ui.tttPanel.classList.add("is-hidden");
+        ui.bingoPlayerPanel.classList.remove("is-hidden");
+        ui.nextNumber.closest(".next-number-badge")?.classList.remove("is-hidden");
+
+        // Called numbers and sounds
+        const calledSet = new Set(serverState.calledNumbers || []);
+        const currentCalledCount = calledSet.size;
+        const currentLines = serverState.lines?.[you] || 0;
+        const oppCurrentLines = serverState.lines?.[opp] || 0;
+
+        if (currentCalledCount > lastCalledCount && serverState.status === "playing") {
+            sfxNumberMarked();
+        }
+        lastCalledCount = currentCalledCount;
+
+        // Detect Player Line completion
+        if (currentLines > lastLineCount && serverState.status === "playing") {
+            if (currentLines === 4) sfxMatchPoint();
+            else if (currentLines < 5) sfxLineComplete();
+        }
+        lastLineCount = currentLines;
+
+        // Detect Opponent Line completion
+        if (oppCurrentLines > lastOppLineCount && serverState.status === "playing") {
+            if (oppCurrentLines === 4) sfxOppMatchPoint();
+            else if (oppCurrentLines < 5) sfxOppLineComplete();
+        }
+        lastOppLineCount = oppCurrentLines;
+
+        // Board rendering
+        if (serverState.status === "setup" && !youInfo.ready) {
+            renderPlayerBoard(localState.board, calledSet);
+        } else {
+            renderPlayerBoard(serverState.boards?.[you], calledSet);
+        }
+
+        // Opponent Board rendering
+        if (serverState.status === "playing" || serverState.status === "finished") {
+            ui.oppBoardWrap.classList.remove("is-hidden");
+            renderBoard(oppCells, serverState.boards?.[opp], calledSet, true, true);
+        } else {
+            ui.oppBoardWrap.classList.add("is-hidden");
+        }
+
+        ui.youLines.textContent = String(serverState.lines?.[you] || 0);
+        ui.oppLines.textContent = String(serverState.lines?.[opp] || 0);
+
+        // BINGO letters (You)
+        const letters = ["B", "I", "N", "G", "O"];
+        const lines = serverState.lines?.[you] || 0;
+        letters.forEach((l, i) => {
+            const el = document.getElementById(`letter-${l}`);
+            if (el) el.classList.toggle("cancelled", i < lines);
+        });
+
+        // BINGO letters (Opponent)
+        const oppLinesLetters = serverState.lines?.[opp] || 0;
+        letters.forEach((l, i) => {
+            const el = document.getElementById(`opp-letter-${l}`);
+            if (el) el.classList.toggle("cancelled", i < oppLinesLetters);
+        });
+
+        renderLayoutButtons(opp);
+
+        // Layout row visibility (hide during play)
+        if (ui.layoutRow) {
+            ui.layoutRow.classList.toggle("is-hidden", serverState.status !== "setup");
+        }
+
+        // Turn indicator and timer
+        if (serverState.status === "setup") {
+            ui.turnIndicator.textContent = "Place numbers and tap Ready";
+            ui.timerBar.classList.add("is-hidden");
+            stopTimerAnimation();
+        } else if (serverState.status === "playing") {
+            ui.turnIndicator.textContent = isYourTurn ? "⚡ Your turn to call!" : "⏳ Opponent is calling...";
+            startTimerAnimation();
+        } else if (serverState.status === "finished") {
+            ui.turnIndicator.textContent = "Game finished";
+            ui.timerBar.classList.add("is-hidden");
+            stopTimerAnimation();
+        }
+
+        // Ready button
+        ui.readyBtn.disabled = localState.next <= 25 || youInfo.ready;
+        ui.readyBtn.classList.toggle("is-hidden", serverState.status !== "setup");
+        localState.ready = !!youInfo.ready;
+        ui.nextNumber.textContent = youInfo.ready ? "done" : String(localState.next);
+
     } else {
+        // Tic Tac Toe Mode
+        ui.bingoPlayerPanel.classList.add("is-hidden");
         ui.oppBoardWrap.classList.add("is-hidden");
+        ui.nextNumber.closest(".next-number-badge")?.classList.add("is-hidden");
+        if (ui.layoutRow) ui.layoutRow.classList.add("is-hidden");
+        ui.tttPanel.classList.remove("is-hidden");
+
+        // Moves and sounds
+        const currentMoves = (serverState.tttBoard || []).filter(c => c !== null).length;
+        if (currentMoves > lastTTTMoveCount && serverState.status === "playing") {
+            sfxNumberMarked();
+        }
+        lastTTTMoveCount = currentMoves;
+
+        // Render Tic Tac Toe Board
+        const boardState = serverState.tttBoard || Array(9).fill(null);
+        tttCells.forEach((cell, i) => {
+            const val = boardState[i];
+            cell.textContent = val ? (val === "A" ? "X" : "O") : "";
+            
+            // Clean classes
+            cell.classList.remove("symbol-x", "symbol-o");
+            if (val === "A") cell.classList.add("symbol-x", "ttt-symbol");
+            else if (val === "B") cell.classList.add("symbol-o", "ttt-symbol");
+            else cell.classList.remove("ttt-symbol");
+            
+            // Interactive state
+            const cellLocked = serverState.status !== "playing" || !isYourTurn || val !== null;
+            cell.classList.toggle("locked", cellLocked);
+        });
+
+        // Scores and Names
+        ui.tttScoreX.textContent = serverState.score?.A || 0;
+        ui.tttScoreO.textContent = serverState.score?.B || 0;
+        ui.tttPlayerXName.textContent = serverState.players?.A?.name || "Player A";
+        ui.tttPlayerOName.textContent = serverState.players?.B?.name || "Player B";
+        
+        // Highlight active player symbol
+        const playerXBadge = ui.tttPlayerXBadge;
+        const playerOBadge = ui.tttPlayerOBadge;
+        playerXBadge.style.borderColor = serverState.turn === "A" && serverState.status === "playing" ? "var(--blue)" : "";
+        playerOBadge.style.borderColor = serverState.turn === "B" && serverState.status === "playing" ? "var(--red)" : "";
+
+        // Turn indicator
+        if (serverState.status === "setup") {
+            ui.tttTurnIndicator.textContent = "Tap Ready to start duel";
+            ui.timerBar.classList.add("is-hidden");
+            stopTimerAnimation();
+        } else if (serverState.status === "playing") {
+            ui.tttTurnIndicator.textContent = isYourTurn ? "⚡ Your turn to place!" : "⏳ Opponent is thinking...";
+            startTimerAnimation();
+        } else if (serverState.status === "finished") {
+            ui.tttTurnIndicator.textContent = "Game finished";
+            ui.timerBar.classList.add("is-hidden");
+            stopTimerAnimation();
+        }
+
+        // Ready button
+        ui.readyBtn.disabled = !!youInfo.ready;
+        ui.readyBtn.classList.toggle("is-hidden", serverState.status !== "setup");
+        localState.ready = !!youInfo.ready;
+        ui.nextNumber.textContent = youInfo.ready ? "done" : "play";
     }
 
-    ui.youLines.textContent = String(serverState.lines?.[you] || 0);
-    ui.oppLines.textContent = String(serverState.lines?.[opp] || 0);
-
-    const isYourTurn = serverState.status === "playing" && serverState.turn === you;
-    renderLayoutButtons(opp);
-
-    // BINGO letters (You)
-    const letters = ["B", "I", "N", "G", "O"];
-    const lines = serverState.lines?.[you] || 0;
-    letters.forEach((l, i) => {
-        const el = document.getElementById(`letter-${l}`);
-        if (el) el.classList.toggle("cancelled", i < lines);
-    });
-
-    // BINGO letters (Opponent)
-    const oppLinesLetters = serverState.lines?.[opp] || 0;
-    letters.forEach((l, i) => {
-        const el = document.getElementById(`opp-letter-${l}`);
-        if (el) el.classList.toggle("cancelled", i < oppLinesLetters);
-    });
-
-    // Layout row visibility (hide during play)
-    if (ui.layoutRow) {
-        ui.layoutRow.classList.toggle("is-hidden", serverState.status !== "setup");
-    }
-
-    // Turn indicator and timer
-    if (serverState.status === "setup") {
-        ui.turnIndicator.textContent = "Place numbers and tap Ready";
-        ui.timerBar.classList.add("is-hidden");
-        stopTimerAnimation();
-    } else if (serverState.status === "playing") {
-        ui.turnIndicator.textContent = isYourTurn ? "⚡ Your turn to call!" : "⏳ Opponent is calling...";
-        startTimerAnimation();
-    } else if (serverState.status === "finished") {
-        ui.turnIndicator.textContent = "Game finished";
-        ui.timerBar.classList.add("is-hidden");
-        stopTimerAnimation();
-    }
-
-    // Ready button
-    ui.readyBtn.disabled = localState.next <= 25 || youInfo.ready;
-    ui.readyBtn.classList.toggle("is-hidden", serverState.status !== "setup");
-    localState.ready = !!youInfo.ready;
-    ui.nextNumber.textContent = youInfo.ready ? "done" : String(localState.next);
-
-    // Win screen (with guard to prevent repeated triggers)
+    // Win screen
     if (serverState.status === "finished" && !hasShownWinScreen) {
         hasShownWinScreen = true;
         const winner = serverState.winner;
         if (winner === "TIE") {
             ui.winnerTitle.textContent = "Tie game!";
-            ui.winnerSub.textContent = "Both hit 5 lines at the same time";
+            ui.winnerSub.textContent = isBingo ? "Both hit 5 lines at the same time" : "No spaces left on the board";
             launchConfetti();
             sfxTie();
         } else if (winner === you) {
             ui.winnerTitle.textContent = "🎉 You won! 🎉";
-            ui.winnerSub.textContent = "You completed 5 lines first!";
+            ui.winnerSub.textContent = isBingo ? "You completed 5 lines first!" : "You got 3 in a row!";
             launchConfetti();
             sfxVictory();
         } else {
             ui.winnerTitle.textContent = "You lost";
-            ui.winnerSub.textContent = "Opponent completed 5 lines first";
+            ui.winnerSub.textContent = isBingo ? "Opponent completed 5 lines first" : "Opponent got 3 in a row";
             sfxDefeat();
         }
         ui.winnerOverlay.classList.remove("is-hidden");
@@ -1013,6 +1136,7 @@ function setupSocket() {
             lastLineCount = 0;
             lastCalledCount = 0;
             lastOppLineCount = 0;
+            lastTTTMoveCount = 0;
             hasShownWinScreen = false;
         }
         if (roomId !== state.roomId) {
@@ -1144,6 +1268,11 @@ ui.clearLayoutBtn.addEventListener("click", () => {
 
 ui.readyBtn.addEventListener("click", () => {
     if (!roomId || !socket) return;
+    sfxReadyPressed();
+    if (serverState && serverState.gameType === "tictactoe") {
+        socket.emit("setReady", { ready: true });
+        return;
+    }
     if (localState.next <= 25) {
         showToast("Place all 25 numbers first.");
         return;
@@ -1188,6 +1317,16 @@ ui.disconnectBtn.addEventListener("click", () => {
     showToast("Left the room.");
 });
 
+ui.btnBingoTab.addEventListener("click", () => {
+    sfxButtonClick();
+    socket.emit("setGameType", { gameType: "bingo" });
+});
+
+ui.btnTTTTab.addEventListener("click", () => {
+    sfxButtonClick();
+    socket.emit("setGameType", { gameType: "tictactoe" });
+});
+
 // Resume audio on interaction (browser autoplay policy)
 document.addEventListener("click", () => {
     getAudioCtx();
@@ -1202,6 +1341,7 @@ window.addEventListener("beforeunload", () => {
 
 buildBoard(ui.playerBoard, playerCells, handleCellClick);
 buildBoard(ui.oppBoard, oppCells, null);
+buildTTTBoard(ui.tttBoard, handleTTTCellClick);
 buildLayoutButtons();
 
 const savedName = localStorage.getItem("displayName");

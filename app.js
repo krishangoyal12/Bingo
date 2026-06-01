@@ -474,41 +474,7 @@ document.addEventListener("click", (e) => {
 });
 
 // ── Confetti ──
-function launchConfetti() {
-    const existing = document.querySelector(".confetti-container");
-    if (existing) existing.remove();
-
-    const container = document.createElement("div");
-    container.className = "confetti-container";
-    document.body.appendChild(container);
-
-    const colors = [
-        "#ff5f6d", "#ffb347", "#1ee3cf", "#ff2a2a", "#ffc700",
-        "#00e676", "#7c4dff", "#ff4081", "#18ffff", "#ffd740",
-    ];
-    const shapes = ["rect", "circle", "strip"];
-
-    for (let i = 0; i < 150; i++) {
-        const piece = document.createElement("div");
-        const shape = shapes[Math.floor(Math.random() * shapes.length)];
-        piece.className = `confetti-piece ${shape}`;
-        piece.style.left = `${Math.random() * 100}%`;
-        piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-        piece.style.animationDuration = `${1.8 + Math.random() * 2.5}s`;
-        piece.style.animationDelay = `${Math.random() * 1}s`;
-        if (shape === "strip") {
-            piece.style.width = `${3 + Math.random() * 5}px`;
-            piece.style.height = `${14 + Math.random() * 16}px`;
-        } else {
-            const size = 6 + Math.random() * 12;
-            piece.style.width = `${size}px`;
-            piece.style.height = `${size}px`;
-        }
-        container.appendChild(piece);
-    }
-
-    setTimeout(() => container.remove(), 6000);
-}
+// Removed old launchConfetti() in favor of GameEffects component in game-effects.js
 
 // ── Turn Timer ──
 function startTimerAnimation() {
@@ -948,10 +914,15 @@ function render() {
     lastStatus = serverState.status;
 
     // Toggle panel visibility and Selector active states
-    ui.gameSelector.classList.toggle("is-hidden", serverState.status === "playing");
+    const isPlaying = serverState.status === "playing";
+    ui.gameSelector.classList.remove("is-hidden"); // always visible once in a room
     ui.btnBingoTab.classList.toggle("active", serverState.gameType === "bingo");
     ui.btnTTTTab.classList.toggle("active", serverState.gameType === "tictactoe");
     ui.btnChopsticksTab.classList.toggle("active", serverState.gameType === "chopsticks");
+    // Lock non-active tabs while a game is in progress
+    ui.btnBingoTab.classList.toggle("tab-locked", isPlaying && serverState.gameType !== "bingo");
+    ui.btnTTTTab.classList.toggle("tab-locked", isPlaying && serverState.gameType !== "tictactoe");
+    ui.btnChopsticksTab.classList.toggle("tab-locked", isPlaying && serverState.gameType !== "chopsticks");
 
     if (serverState.gameType === "bingo") {
         ui.tttPanel.classList.add("is-hidden");
@@ -1145,22 +1116,24 @@ function render() {
         if (winner === "TIE") {
             ui.winnerTitle.textContent = "Tie game!";
             ui.winnerSub.textContent = tieSubMap[gameType] || "Game over";
-            launchConfetti();
+            if (window.GameEffects) GameEffects.tie();
             sfxTie();
         } else if (winner === you) {
             ui.winnerTitle.textContent = "🎉 You won! 🎉";
             ui.winnerSub.textContent = winSubMap[gameType] || "You win!";
-            launchConfetti();
+            if (window.GameEffects) GameEffects.win();
             sfxVictory();
         } else {
             ui.winnerTitle.textContent = "You lost";
             ui.winnerSub.textContent = loseSubMap[gameType] || "Better luck next time";
+            if (window.GameEffects) GameEffects.lose();
             sfxDefeat();
         }
         ui.winnerOverlay.classList.remove("is-hidden");
     } else if (serverState.status !== "finished") {
         hasShownWinScreen = false;
         ui.winnerOverlay.classList.add("is-hidden");
+        if (window.GameEffects) GameEffects.clear();
     }
 
 
@@ -1395,20 +1368,28 @@ ui.disconnectBtn.addEventListener("click", () => {
     showToast("Left the room.");
 });
 
-ui.btnBingoTab.addEventListener("click", () => {
-    sfxButtonClick();
-    socket.emit("setGameType", { gameType: "bingo" });
-});
+const GAME_DISPLAY_NAMES = {
+    bingo: "Bingo",
+    tictactoe: "Tic Tac Toe",
+    chopsticks: "Chopsticks",
+};
 
-ui.btnTTTTab.addEventListener("click", () => {
+function handleTabClick(targetGameType) {
+    if (!socket || !roomId) return;
+    if (serverState?.status === "playing") {
+        const currentName = GAME_DISPLAY_NAMES[serverState.gameType] || serverState.gameType;
+        const targetName = GAME_DISPLAY_NAMES[targetGameType] || targetGameType;
+        sfxInvalidAction();
+        showToast(`⚠ Complete the ${currentName} game first to switch to ${targetName}`);
+        return;
+    }
     sfxButtonClick();
-    socket.emit("setGameType", { gameType: "tictactoe" });
-});
+    socket.emit("setGameType", { gameType: targetGameType });
+}
 
-ui.btnChopsticksTab.addEventListener("click", () => {
-    sfxButtonClick();
-    socket.emit("setGameType", { gameType: "chopsticks" });
-});
+ui.btnBingoTab.addEventListener("click", () => handleTabClick("bingo"));
+ui.btnTTTTab.addEventListener("click", () => handleTabClick("tictactoe"));
+ui.btnChopsticksTab.addEventListener("click", () => handleTabClick("chopsticks"));
 
 function getHandDisplay(value) {
     if (value === 0) return "☠";
@@ -1478,11 +1459,17 @@ function launchAttackAnimation(fromEl, toEl, newVal, callback) {
 function getRedistributeOptions(left, right) {
     const sum = left + right;
     const options = [];
-    for (let l = 1; l < sum; l++) {  // start from 1, end before sum so both hands are alive
+    
+    // Generate unique unordered combinations (e.g. 1+3 but not 3+1)
+    const minCurrent = Math.min(left, right);
+    const maxCurrent = Math.max(left, right);
+    
+    for (let l = 0; l <= Math.floor(sum / 2); l++) {
         const r = sum - l;
         if (l <= 4 && r <= 4) {
-            if (l !== left || r !== right) {
-                options.push({ left: l, right: r });
+            // Avoid generating the same state (unordered)
+            if (l !== minCurrent || r !== maxCurrent) {
+                options.push({ left: Math.max(l, r), right: Math.min(l, r) });
             }
         }
     }
@@ -1623,9 +1610,10 @@ function renderChopsticks() {
                 ui.chopActionStatus.textContent = "YOUR TURN: Select an opponent's hand to attack";
                 ui.btnChopCancelAction.classList.remove("is-hidden");
             }
-            const hasDeadHand = youHands.left === 0 || youHands.right === 0;
-            const aliveVal = youHands.left !== 0 ? youHands.left : youHands.right;
-            const canRedistribute = hasDeadHand && aliveVal > 1;
+            const sumFingers = youHands.left + youHands.right;
+            const bothDead = youHands.left === 0 && youHands.right === 0;
+            const singleHandOne = sumFingers === 1;
+            const canRedistribute = !bothDead && !singleHandOne;
             const options = canRedistribute ? getRedistributeOptions(youHands.left, youHands.right) : [];
             ui.btnChopRedistribute.classList.toggle("is-hidden", options.length === 0 || localState.selectedChopHand !== null);
         } else {

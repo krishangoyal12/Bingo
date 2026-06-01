@@ -626,22 +626,15 @@ io.on("connection", (socket) => {
         const oldLeft = room.chopsticks[slot].left;
         const oldRight = room.chopsticks[slot].right;
         
-        // Only allow redistribution if one hand is dead
-        if (oldLeft !== 0 && oldRight !== 0) {
-            socket.emit("errorMessage", "Redistribution is only allowed when one of your hands is dead.");
+        const sumFingers = oldLeft + oldRight;
+        
+        // Cannot distribute if both hands are dead or sum is 1
+        if (oldLeft === 0 && oldRight === 0) {
+            socket.emit("errorMessage", "Both hands are dead.");
             return;
         }
-        
-        // Alive hand must have more than 1 finger to split
-        const aliveVal = oldLeft !== 0 ? oldLeft : oldRight;
-        if (aliveVal <= 1) {
-            socket.emit("errorMessage", "Your alive hand needs more than 1 finger to redistribute.");
-            return;
-        }
-        
-        // Both hands must end up alive after redistribution
-        if (l <= 0 || r <= 0) {
-            socket.emit("errorMessage", "Both hands must be alive after redistribution.");
+        if (sumFingers <= 1) {
+            socket.emit("errorMessage", "Need more than 1 finger total to redistribute.");
             return;
         }
         
@@ -650,8 +643,13 @@ io.on("connection", (socket) => {
             socket.emit("errorMessage", "Total fingers must remain unchanged.");
             return;
         }
-        // State difference
-        if (l === oldLeft && r === oldRight) {
+        // State difference (unordered comparison)
+        const oldMin = Math.min(oldLeft, oldRight);
+        const oldMax = Math.max(oldLeft, oldRight);
+        const newMin = Math.min(l, r);
+        const newMax = Math.max(l, r);
+        
+        if (newMin === oldMin && newMax === oldMax) {
             socket.emit("errorMessage", "Must produce a different state.");
             return;
         }

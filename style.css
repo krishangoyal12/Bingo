@@ -970,6 +970,21 @@ input[type="text"]:focus {
     border-color: var(--dark);
 }
 
+.btn-tab.tab-locked {
+    opacity: 0.42;
+    cursor: not-allowed;
+    border-style: dashed;
+    box-shadow: 2px 2px 0 0 #aaa;
+    color: #888;
+    border-color: #aaa;
+}
+
+.btn-tab.tab-locked:hover {
+    background: #FFFFFF;
+    transform: none;
+    box-shadow: 2px 2px 0 0 #aaa;
+}
+
 /* ── Tic Tac Toe Board ── */
 .board-ttt {
     display: grid;

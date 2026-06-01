@@ -55,6 +55,11 @@ const ui = {
     bingoPlayerPanel: byId("bingoPlayerPanel"),
     tttPlayerXBadge: byId("tttPlayerXBadge"),
     tttPlayerOBadge: byId("tttPlayerOBadge"),
+    infoBtn: byId("infoBtn"),
+    infoOverlay: byId("infoOverlay"),
+    closeRulesBtn: byId("closeRulesBtn"),
+    rulesBody: byId("rulesBody"),
+    rulesTitle: byId("rulesTitle"),
 };
 
 const localState = {
@@ -1325,6 +1330,74 @@ ui.btnBingoTab.addEventListener("click", () => {
 ui.btnTTTTab.addEventListener("click", () => {
     sfxButtonClick();
     socket.emit("setGameType", { gameType: "tictactoe" });
+});
+
+function showRules() {
+    const gameType = serverState?.gameType || "bingo";
+    if (gameType === "tictactoe") {
+        ui.rulesTitle.textContent = "Tic Tac Toe Rules";
+        ui.rulesBody.innerHTML = `
+            <h3>Objective</h3>
+            <p>Place 3 of your symbols in a row (horizontal, vertical, or diagonal) on the 3x3 board.</p>
+            
+            <h3>Symbols</h3>
+            <p><strong>Player A</strong> plays as <span style="color: var(--blue); font-weight: bold;">X (Cyan)</span>.<br><strong>Player B</strong> plays as <span style="color: var(--red); font-weight: bold;">O (Red)</span>.</p>
+            
+            <h3>Gameplay</h3>
+            <ul>
+                <li>Players take turns clicking empty grid squares to place their symbol.</li>
+                <li>Each turn has a <strong>30-second time limit</strong>. If you run out of time, your turn is automatically skipped!</li>
+            </ul>
+
+            <h3>Match Play & Rematches</h3>
+            <ul>
+                <li>For the first game (score 0-0), both players must click <strong>READY</strong> to begin.</li>
+                <li>For all subsequent rounds, clicking <strong>Play Again</strong> will instantly clear the board and start the next match, automatically alternating who goes first.</li>
+            </ul>
+        `;
+    } else {
+        ui.rulesTitle.textContent = "Bingo Duel Rules";
+        ui.rulesBody.innerHTML = `
+            <h3>Objective</h3>
+            <p>Complete <strong>5 lines</strong> (horizontal rows, vertical columns, or diagonals) on your 5x5 board before your opponent does.</p>
+            
+            <h3>Setup Phase</h3>
+            <ul>
+                <li>Configure your board by clicking cells to place numbers <strong>1 to 25</strong> in any order.</li>
+                <li>You can also click any of the <strong>Preset</strong> layouts in the bottom bar to instantly fill your board.</li>
+                <li>Click <strong>READY</strong> once your board is complete. The match starts when both players are ready.</li>
+            </ul>
+
+            <h3>Gameplay</h3>
+            <ul>
+                <li>On your turn, click a number on your board to <strong>call</strong> it.</li>
+                <li>Called numbers are highlighted in red and crossed out on <strong>both</strong> players' boards.</li>
+                <li>When a row, column, or diagonal is fully called, a strike-through line is completed.</li>
+                <li>Turns alternate, each with a <strong>30-second limit</strong>. Running out of time skips your turn!</li>
+            </ul>
+
+            <h3>Winning</h3>
+            <p>The first player to complete 5 lines wins. If both players reach 5 lines on the same turn, it results in a <strong>Tie</strong>.</p>
+        `;
+    }
+    ui.infoOverlay.classList.remove("is-hidden");
+}
+
+ui.infoBtn.addEventListener("click", () => {
+    sfxButtonClick();
+    showRules();
+});
+
+ui.closeRulesBtn.addEventListener("click", () => {
+    sfxButtonClick();
+    ui.infoOverlay.classList.add("is-hidden");
+});
+
+ui.infoOverlay.addEventListener("click", (e) => {
+    if (e.target === ui.infoOverlay) {
+        sfxButtonClick();
+        ui.infoOverlay.classList.add("is-hidden");
+    }
 });
 
 // Resume audio on interaction (browser autoplay policy)

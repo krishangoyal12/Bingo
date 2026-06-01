@@ -28,6 +28,11 @@
             </button>
           </div>
           
+          <button class="btn btn-icon" id="infoBtn" title="Game Rules" aria-label="Game Rules">
+            <!-- Info Icon -->
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          </button>
+          
           <button class="btn btn-icon" id="muteGameBtn" title="Toggle Game Sounds" aria-label="Toggle Game Sounds">
             <!-- Music icon -->
             <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="icon-on"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
@@ -185,6 +190,21 @@
           <div class="overlay-title" id="winnerTitle">Winner!</div>
           <div class="overlay-sub" id="winnerSub">Game over</div>
           <button class="btn btn-primary" id="playAgainBtn">Play again</button>
+        </div>
+      </div>
+
+      <!-- Info / Rules Modal -->
+      <div class="overlay is-hidden" id="infoOverlay">
+        <div class="glass-card rules-card">
+          <div class="modal-header">
+            <h2 id="rulesTitle">Game Rules</h2>
+            <button class="btn btn-icon" id="closeRulesBtn" title="Close Rules" aria-label="Close Rules">
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+          <div class="modal-body" id="rulesBody">
+            <!-- Rules content dynamically generated in app.js -->
+          </div>
         </div>
       </div>
     </div>

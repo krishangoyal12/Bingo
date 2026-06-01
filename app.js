@@ -1222,7 +1222,8 @@ let lastOppSocketId = null;
 const iceServers = {
     iceServers: [
         { urls: "stun:stun.l.google.com:19302" }
-    ]
+    ],
+    iceCandidatePoolSize: 10
 };
 
 async function initVoiceChat() {

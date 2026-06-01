@@ -59,6 +59,8 @@ html, body {
     
     border-bottom: 3px solid var(--glass-border);
     flex-shrink: 0;
+    gap: 16px;
+    overflow: hidden;
 }
 
 .logo {
@@ -66,12 +68,25 @@ html, body {
     font-size: clamp(16px, 2.5vh, 22px);
     color: var(--text);
     letter-spacing: 1px;
+    flex-shrink: 0;
 }
 
 .nav-badges {
     display: flex;
     gap: 8px;
     align-items: center;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+    max-width: 100%;
+}
+
+.nav-badges::-webkit-scrollbar {
+    display: none;
+}
+
+.nav-badges > * {
+    flex-shrink: 0;
 }
 
 .badge {
@@ -701,6 +716,12 @@ input[type="text"]:focus {
     .game-area {
         flex-direction: column;
         gap: 16px;
+        overflow-y: auto;
+        justify-content: center;
+    }
+    
+    .game-area:has(#oppBoardWrap:not(.is-hidden)) {
+        justify-content: flex-start;
     }
     
     .floating-status {
@@ -726,5 +747,189 @@ input[type="text"]:focus {
 
     .action-content {
         padding: 0 12px;
+    }
+}
+
+@media (max-width: 600px) {
+    :root {
+        --cell-size: clamp(34px, 7.2vh, 48px);
+        --grid-gap: 3px;
+    }
+
+    /* Top navigation adjustments to fit buttons and badges */
+    .top-nav {
+        padding: 0 10px;
+        height: 50px;
+    }
+    
+    .logo {
+        font-size: 15px;
+        letter-spacing: 0.5px;
+    }
+    
+    .nav-badges {
+        gap: 4px;
+    }
+    
+    .badge {
+        padding: 4px 8px;
+        font-size: 10px;
+        border-width: 2px;
+        box-shadow: 1px 1px 0 0 var(--dark);
+    }
+
+    
+    .btn-icon {
+        width: 28px;
+        height: 28px;
+        border-width: 2px;
+        box-shadow: 1px 1px 0 0 var(--dark);
+    }
+    
+    .btn-icon svg {
+        width: 14px;
+        height: 14px;
+    }
+    
+    .btn-leave {
+        padding: 4px 10px;
+        font-size: 10px;
+        border-width: 2px;
+        box-shadow: 1px 1px 0 0 var(--red);
+    }
+
+    /* Game panel adjustments */
+    .player-panel {
+        padding: 10px;
+        border-radius: 16px;
+        border-width: 2px;
+        box-shadow: 2px 2px 0 0 var(--glass-border);
+        gap: 8px;
+        width: 100%;
+        max-width: 320px;
+    }
+    
+    .panel-header {
+        gap: 8px;
+    }
+    
+    .glass-badge {
+        padding: 4px 8px;
+        border-radius: 8px;
+        border-width: 2px;
+    }
+    
+    .glass-badge .highlight {
+        font-size: 13px;
+    }
+    
+    .glass-badge .muted {
+        font-size: 9px;
+    }
+    
+    .turn-badge {
+        font-size: 11px;
+    }
+    
+    .bingo-letters {
+        font-size: 20px;
+        padding: 0 4px;
+    }
+    
+    .bingo-letter {
+        font-size: 20px;
+    }
+    
+    .cell {
+        border-width: 2px;
+        border-radius: 6px;
+        box-shadow: 1px 1px 0 0 var(--dark);
+        font-size: 18px;
+    }
+    
+    .cell:not(.locked):hover {
+        box-shadow: 1.5px 1.5px 0 0 var(--dark);
+    }
+    
+    .cell.marked::after {
+        font-size: 24px;
+    }
+    
+    .game-area {
+        gap: 12px;
+        padding: 8px 4px;
+    }
+
+    /* Bottom action content adjustments */
+    .bottom-action-area {
+        border-top-width: 2px;
+    }
+    
+    .action-content {
+        padding: 0 8px;
+        height: 60px;
+    }
+    
+    .layouts-wrapper {
+        gap: 4px;
+    }
+    
+    .layouts-label {
+        display: none !important; /* Hide presets label to fit list */
+    }
+    
+    .layout-list {
+        display: flex;
+        gap: 4px;
+        overflow-x: auto;
+        max-width: 110px;
+        scrollbar-width: none;
+    }
+    
+    .layout-list::-webkit-scrollbar {
+        display: none;
+    }
+    
+    .layout-btn {
+        padding: 3px 8px;
+        font-size: 10px;
+        border-width: 2px;
+    }
+    
+    .btn-ghost {
+        border-width: 2px;
+        font-size: 10px;
+        padding: 4px 8px;
+    }
+    
+    .next-action {
+        gap: 8px;
+    }
+    
+    .next-number-badge {
+        padding: 4px 8px;
+        border-width: 2px;
+    }
+    
+    .next-number-badge .highlight {
+        font-size: 14px;
+    }
+    
+    .btn-large {
+        padding: 6px 14px;
+        font-size: 12px;
+        border-width: 2px;
+        box-shadow: 2px 2px 0 0 var(--dark);
+    }
+    
+    .btn-large:not(:disabled):hover {
+        box-shadow: 1px 1px 0 0 var(--dark);
+    }
+    
+    .toast {
+        padding: 8px 16px;
+        font-size: 11px;
+        border-width: 2px;
+        bottom: 70px; /* Position it above the action area */
     }
 }

@@ -597,6 +597,7 @@ function render() {
         ui.disconnectBtn.classList.add("is-hidden");
         ui.forfeitBtn.classList.add("is-hidden");
         ui.forfeitOverlay.classList.add("is-hidden");
+        ui.infoBtn.classList.add("is-hidden");
         ui.roomCode.textContent = "----";
         ui.youName.textContent = "-";
         ui.readyChip.classList.add("is-hidden");
@@ -609,6 +610,7 @@ function render() {
     if (ui.rpsPanel) ui.rpsPanel.classList.add("is-hidden");
     ui.actionArea.classList.remove("is-hidden");
     ui.disconnectBtn.classList.remove("is-hidden");
+    ui.infoBtn.classList.remove("is-hidden");
     
     if (serverState.status === "playing") {
         ui.forfeitBtn.classList.remove("is-hidden");
@@ -704,13 +706,17 @@ function render() {
     ui.btnDotBoxTab.classList.toggle("tab-locked", isPlaying && serverState.gameType !== "dotBox");
     ui.btnRpsTab.classList.toggle("tab-locked", isPlaying && serverState.gameType !== "rps");
     ui.btnConnect5Tab.classList.toggle("tab-locked", isPlaying && serverState.gameType !== "connect5");
+    // Centralized visibility reset for all game panels and boards
+    ui.bingoPlayerPanel.classList.add("is-hidden");
+    ui.oppBoardWrap.classList.add("is-hidden");
+    ui.tttPanel.classList.add("is-hidden");
+    ui.chopsticksPanel.classList.add("is-hidden");
+    ui.rpsPanel.classList.add("is-hidden");
+    ui.connect5Panel.classList.add("is-hidden");
+    if (ui.dotBoxBoard) ui.dotBoxBoard.classList.add("is-hidden");
+    if (ui.tttBoard) ui.tttBoard.classList.add("is-hidden");
 
     if (serverState.gameType === "bingo") {
-        ui.tttPanel.classList.add("is-hidden");
-        ui.chopsticksPanel.classList.add("is-hidden");
-        if (ui.dotBoxBoard) ui.dotBoxBoard.classList.add("is-hidden");
-        ui.rpsPanel.classList.add("is-hidden");
-        ui.connect5Panel.classList.add("is-hidden");
         ui.bingoPlayerPanel.classList.remove("is-hidden");
         ui.nextNumber.closest(".next-number-badge")?.classList.remove("is-hidden");
 

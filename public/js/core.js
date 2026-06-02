@@ -47,6 +47,7 @@ const ui = {
     btnTTTTab: byId("btnTTTTab"),
     btnChopsticksTab: byId("btnChopsticksTab"),
     btnDotBoxTab: byId("btnDotBoxTab"),
+    btnRpsTab: byId("btnRpsTab"),
     btnLeave: byId("btnLeave"),
     tttPanel: byId("tttPanel"),
     tttBoard: byId("tttBoard"),
@@ -85,6 +86,23 @@ const ui = {
     chopRedistributeOverlay: byId("chopRedistributeOverlay"),
     chopDistributionOptions: byId("chopDistributionOptions"),
     btnChopCloseRedistribute: byId("btnChopCloseRedistribute"),
+    // Added for RPS:
+    rpsPanel: byId("rpsPanel"),
+    rpsTurnIndicator: byId("rpsTurnIndicator"),
+    rpsFormatSelect: byId("rpsFormatSelect"),
+    rpsFormatDisplay: byId("rpsFormatDisplay"),
+    rpsOppCard: byId("rpsOppCard"),
+    rpsOppCardFront: byId("rpsOppCardFront"),
+    rpsStatus: byId("rpsStatus"),
+    rpsCountdown: byId("rpsCountdown"),
+    rpsChoices: byId("rpsChoices"),
+    rpsPlayName: byId("rpsPlayName"),
+    rpsOppName: byId("rpsOppName"),
+    rpsPlayDots: byId("rpsPlayDots"),
+    rpsOppDots: byId("rpsOppDots"),
+    rpsFaceoff: byId("rpsFaceoff"),
+    fighterLeft: byId("fighterLeft"),
+    fighterRight: byId("fighterRight"),
 };
 
 const localState = {
@@ -569,6 +587,7 @@ function render() {
 
     ui.lobby.classList.add("is-hidden");
     ui.game.classList.remove("is-hidden");
+    if (ui.rpsPanel) ui.rpsPanel.classList.add("is-hidden");
     ui.actionArea.classList.remove("is-hidden");
     ui.disconnectBtn.classList.remove("is-hidden");
     ui.roomCode.textContent = roomId;
@@ -645,10 +664,13 @@ function render() {
     ui.btnTTTTab.classList.toggle("active", serverState.gameType === "tictactoe");
     ui.btnChopsticksTab.classList.toggle("active", serverState.gameType === "chopsticks");
     ui.btnDotBoxTab.classList.toggle("active", serverState.gameType === "dotBox");
+    ui.btnRpsTab.classList.toggle("active", serverState.gameType === "rps");
     // Lock non-active tabs while a game is in progress
     ui.btnBingoTab.classList.toggle("tab-locked", isPlaying && serverState.gameType !== "bingo");
     ui.btnTTTTab.classList.toggle("tab-locked", isPlaying && serverState.gameType !== "tictactoe");
     ui.btnChopsticksTab.classList.toggle("tab-locked", isPlaying && serverState.gameType !== "chopsticks");
+    ui.btnDotBoxTab.classList.toggle("tab-locked", isPlaying && serverState.gameType !== "dotBox");
+    ui.btnRpsTab.classList.toggle("tab-locked", isPlaying && serverState.gameType !== "rps");
 
     if (serverState.gameType === "bingo") {
         ui.tttPanel.classList.add("is-hidden");
@@ -857,6 +879,33 @@ function render() {
         }
 
         renderDotBoxBoard();
+    } else if (serverState.gameType === "rps") {
+        ui.bingoPlayerPanel.classList.add("is-hidden");
+        ui.oppBoardWrap.classList.add("is-hidden");
+        ui.chopsticksPanel.classList.add("is-hidden");
+        ui.tttPanel.classList.add("is-hidden");
+        if (ui.dotBoxBoard) ui.dotBoxBoard.classList.add("is-hidden");
+        ui.nextNumber.closest(".next-number-badge")?.classList.add("is-hidden");
+        if (ui.layoutRow) ui.layoutRow.classList.add("is-hidden");
+
+        ui.rpsPanel.classList.remove("is-hidden");
+
+        // Ready button
+        ui.readyBtn.disabled = !!youInfo.ready;
+        ui.readyBtn.classList.toggle("is-hidden", serverState.status !== "setup");
+        localState.ready = !!youInfo.ready;
+        ui.nextNumber.textContent = youInfo.ready ? "done" : "play";
+
+        if (serverState.status === "setup") {
+            ui.rpsTurnIndicator.textContent = "Tap Ready to start duel";
+            ui.timerBar.classList.add("is-hidden");
+            stopTimerAnimation();
+        } else {
+            ui.timerBar.classList.add("is-hidden");
+            stopTimerAnimation();
+        }
+
+        renderRPS();
     }
 
     // Win screen
@@ -1098,7 +1147,7 @@ ui.clearLayoutBtn.addEventListener("click", () => {
 ui.readyBtn.addEventListener("click", () => {
     if (!roomId || !socket) return;
     sfxReadyPressed();
-    if (serverState && (serverState.gameType === "tictactoe" || serverState.gameType === "chopsticks" || serverState.gameType === "dotBox")) {
+    if (serverState && serverState.gameType !== "bingo") {
         socket.emit("setReady", { ready: true });
         return;
     }
@@ -1152,6 +1201,7 @@ const GAME_DISPLAY_NAMES = {
     tictactoe: "Tic Tac Toe",
     chopsticks: "Chopsticks",
     dotBox: "Dot Box",
+    rps: "RPS Duel",
 };
 
 function handleTabClick(targetGameType) {
@@ -1171,6 +1221,7 @@ ui.btnBingoTab.addEventListener("click", () => handleTabClick("bingo"));
 ui.btnTTTTab.addEventListener("click", () => handleTabClick("tictactoe"));
 ui.btnChopsticksTab.addEventListener("click", () => handleTabClick("chopsticks"));
 ui.btnDotBoxTab.addEventListener("click", () => handleTabClick("dotBox"));
+ui.btnRpsTab.addEventListener("click", () => handleTabClick("rps"));
 
 ui.chopPlayLeftHand.addEventListener("click", () => handlePlayerHandClick("left"));
 ui.chopPlayRightHand.addEventListener("click", () => handlePlayerHandClick("right"));
@@ -1279,6 +1330,25 @@ function showRules() {
               <li>If your line completes a 1x1 box (the 4th side), you claim it and score +1.</li>
               <li><strong>BONUS TURN:</strong> Whenever you complete one or more boxes, you immediately get another turn!</li>
               <li>The game ends when all 81 boxes are claimed. The highest score wins!</li>
+            </ul>
+        `;
+    } else if (gt === "rps") {
+        ui.rulesTitle.textContent = "RPS Duel Rules";
+        ui.rulesBody.innerHTML = `
+            <h3>Objective</h3>
+            <p>Win more rounds than your opponent in Best of 3, 5, or 11 matches.</p>
+            <h3>Setup Phase</h3>
+            <ul>
+              <li>Select match format from the Match Type dropdown (Best of 3, 5, or 11) in setup mode.</li>
+              <li>Click <strong>READY</strong> to begin the match.</li>
+            </ul>
+            <h3>Gameplay</h3>
+            <ul>
+              <li>On each round start, a 3-second countdown begins. Choose <strong>Rock</strong>, <strong>Paper</strong>, or <strong>Scissors</strong> before the countdown expires.</li>
+              <li>If you don't choose in time, a random move will be auto-selected.</li>
+              <li>Once both players lock their moves, they are revealed simultaneously.</li>
+              <li><strong>Rock</strong> beats <strong>Scissors</strong>, <strong>Scissors</strong> beats <strong>Paper</strong>, <strong>Paper</strong> beats <strong>Rock</strong>. Ties result in no points.</li>
+              <li>First player to reach the required score (2 wins for best of 3, 3 wins for best of 5, 6 wins for best of 11) wins the duel!</li>
             </ul>
         `;
     } else {

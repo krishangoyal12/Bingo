@@ -2,6 +2,7 @@ const registerBingoEvents = require('./server/games/bingo');
 const registerTTTEvents = require('./server/games/tictactoe');
 const registerChopsticksEvents = require('./server/games/chopsticks');
 const registerDotBoxEvents = require('./server/games/dotBox');
+const { registerRPSEvents, startRpsRound } = require('./server/games/rps');
 
 const path = require("path");
 const express = require("express");
@@ -89,6 +90,7 @@ function buildState(roomId) {
         tttBoard: room.tttBoard || Array(9).fill(null),
         chopsticks: room.chopsticks || { A: { left: 1, right: 1 }, B: { left: 1, right: 1 } },
         dotBox: room.dotBox || null,
+        rps: room.rps || null,
         score: room.score || { A: 0, B: 0 },
         players: {
             A: {
@@ -183,6 +185,8 @@ io.on("connection", (socket) => {
                 vLines: Array(9).fill(null).map(() => Array(10).fill(false)),
                 boxes: Array(9).fill(null).map(() => Array(9).fill(null))
             },
+            rps: null,
+            rpsTargetWins: 3, // Best of 5 (first to 3) by default
             score: { A: 0, B: 0 },
         };
 
@@ -223,6 +227,7 @@ io.on("connection", (socket) => {
         registerTTTEvents(io, socket, rooms, broadcastState, startTurnTimer, clearTurnTimer);
         registerChopsticksEvents(io, socket, rooms, broadcastState, startTurnTimer, clearTurnTimer);
         registerDotBoxEvents(io, socket, rooms, broadcastState, startTurnTimer, clearTurnTimer);
+        registerRPSEvents(io, socket, rooms, broadcastState);
 
         socket.on("rejoinRoom", ({ roomId, sessionId }) => {
         const room = rooms.get(roomId);
@@ -259,8 +264,9 @@ io.on("connection", (socket) => {
         const isTTTRematch = room.gameType === "tictactoe" && (room.score.A > 0 || room.score.B > 0);
         const isChopRematch = room.gameType === "chopsticks" && (room.score.A > 0 || room.score.B > 0);
         const isDotBoxRematch = room.gameType === "dotBox" && (room.score.A > 0 || room.score.B > 0);
+        const isRpsRematch = room.gameType === "rps" && (room.score.A > 0 || room.score.B > 0);
         
-        if (isTTTRematch || isChopRematch || isDotBoxRematch) {
+        if (isTTTRematch || isChopRematch || isDotBoxRematch || isRpsRematch) {
             clearTurnTimer(room);
             room.ready.A = true;
             room.ready.B = true;
@@ -273,10 +279,23 @@ io.on("connection", (socket) => {
             room.tttBoard = Array(9).fill(null);
             room.chopsticks = { A: { left: 1, right: 1 }, B: { left: 1, right: 1 } };
             room.round += 1;
-            room.status = "playing";
-            // Alternate starting player based on round
-            room.turn = room.round % 2 === 1 ? "A" : "B";
-            startTurnTimer(roomId);
+            
+            if (room.gameType === "rps") {
+                room.rps = {
+                    round: 1,
+                    moves: { A: null, B: null },
+                    targetWins: room.rpsTargetWins || 3,
+                    scores: { A: 0, B: 0 },
+                    history: []
+                };
+                room.status = "playing";
+                startRpsRound(roomId, rooms, io, broadcastState);
+            } else {
+                room.status = "playing";
+                // Alternate starting player based on round
+                room.turn = room.round % 2 === 1 ? "A" : "B";
+                startTurnTimer(roomId);
+            }
         } else {
             resetRoom(room);
         }
@@ -292,7 +311,7 @@ io.on("connection", (socket) => {
             socket.emit("errorMessage", "Cannot change game type mid-game.");
             return;
         }
-        if (gameType !== "bingo" && gameType !== "tictactoe" && gameType !== "chopsticks" && gameType !== "dotBox") {
+        if (gameType !== "bingo" && gameType !== "tictactoe" && gameType !== "chopsticks" && gameType !== "dotBox" && gameType !== "rps") {
             socket.emit("errorMessage", "Invalid game type.");
             return;
         }
@@ -312,6 +331,7 @@ io.on("connection", (socket) => {
         room.winner = null;
         room.tttBoard = Array(9).fill(null);
         room.chopsticks = { A: { left: 1, right: 1 }, B: { left: 1, right: 1 } };
+        room.rps = null;
         room.turn = "A";
         clearTurnTimer(room);
         
@@ -330,7 +350,7 @@ io.on("connection", (socket) => {
         const room = rooms.get(roomId);
         if (!room || !slot) return;
         if (room.status !== "setup") return;
-        if (room.gameType !== "tictactoe" && room.gameType !== "chopsticks" && room.gameType !== "dotBox") {
+        if (room.gameType !== "tictactoe" && room.gameType !== "chopsticks" && room.gameType !== "dotBox" && room.gameType !== "rps") {
             socket.emit("errorMessage", "Ready state only toggled directly in setup-free modes.");
             return;
         }
@@ -350,8 +370,21 @@ io.on("connection", (socket) => {
                     vLines: Array(9).fill(null).map(() => Array(10).fill(false)),
                     boxes: Array(9).fill(null).map(() => Array(9).fill(null))
                 };
+                startTurnTimer(roomId);
+            } else if (room.gameType === "rps") {
+                room.rps = {
+                    round: 1,
+                    moves: { A: null, B: null },
+                    targetWins: room.rpsTargetWins || 3,
+                    scores: { A: 0, B: 0 },
+                    history: []
+                };
+                startRpsRound(roomId, rooms, io, broadcastState);
+                return;
             }
-            startTurnTimer(roomId);
+            if (room.gameType !== "rps" && room.gameType !== "dotBox") {
+                startTurnTimer(roomId);
+            }
         }
         broadcastState(roomId);
     });

@@ -51,6 +51,7 @@
         <button class="btn btn-tab" id="btnTTTTab">Tic Tac Toe</button>
         <button class="btn btn-tab" id="btnChopsticksTab">Chopsticks</button>
         <button class="btn btn-tab" id="btnDotBoxTab">Boxes</button>
+        <button class="btn btn-tab" id="btnRpsTab">RPS</button>
       </div>
 
       <!-- Lobby -->
@@ -224,6 +225,99 @@
           </div>
         </div>
 
+        <!-- RPS Panel -->
+        <div class="player-panel rps-panel is-hidden" id="rpsPanel">
+          <div class="panel-header">
+            <div class="glass-badge turn-badge" id="rpsTurnIndicator">Waiting</div>
+            <!-- Match Type dropdown/display -->
+            <div class="glass-badge line-badge">
+              <span class="muted">Match Type</span>
+              <select id="rpsFormatSelect" class="rps-select">
+                <option value="3">Best of 3</option>
+                <option value="5" selected>Best of 5</option>
+                <option value="11">Best of 11</option>
+              </select>
+              <span id="rpsFormatDisplay" class="highlight is-hidden">Best of 5</span>
+            </div>
+          </div>
+
+          <!-- Opponent Move Card -->
+          <div class="rps-opponent-area">
+            <div class="rps-card opponent-card face-down" id="rpsOppCard">
+              <div class="card-inner">
+                <div class="card-back">❓</div>
+                <div class="card-front" id="rpsOppCardFront">🪨</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Central Battle Arena -->
+          <div class="rps-arena" id="rpsArena">
+            <div class="rps-status" id="rpsStatus">Choose Your Move</div>
+            <div class="rps-countdown" id="rpsCountdown"></div>
+            
+            <!-- Dynamic Faceoff View -->
+            <div class="rps-faceoff is-hidden" id="rpsFaceoff">
+              <div class="faceoff-fighter fighter-left" id="fighterLeft"></div>
+              <div class="faceoff-vs">VS</div>
+              <div class="faceoff-fighter fighter-right" id="fighterRight"></div>
+            </div>
+          </div>
+
+          <!-- Player Selection Area -->
+          <div class="rps-player-area">
+            <div class="rps-choices" id="rpsChoices">
+              <button class="rps-card player-card" data-choice="rock" id="rpsBtnRock">
+                <span class="card-title">ROCK</span>
+                <svg class="rps-icon rps-icon-rock" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 40 L20 20 L44 20 L52 40 L44 52 L20 52 Z" fill="var(--dark)" />
+                  <path d="M10 38 L18 18 L42 18 L50 38 L42 50 L18 50 Z" fill="#90A4AE" stroke="var(--dark)" stroke-width="4" stroke-linejoin="round" />
+                  <path d="M18 18 L28 32 L10 38" stroke="var(--dark)" stroke-width="4" stroke-linejoin="round" />
+                  <path d="M42 18 L36 32 L50 38" stroke="var(--dark)" stroke-width="4" stroke-linejoin="round" />
+                  <path d="M28 32 L36 32 L42 50" stroke="var(--dark)" stroke-width="4" stroke-linejoin="round" />
+                  <path d="M28 32 L18 50" stroke="var(--dark)" stroke-width="4" stroke-linejoin="round" />
+                  <circle cx="24" cy="24" r="2" fill="#FFFFFF" opacity="0.6" />
+                </svg>
+              </button>
+              <button class="rps-card player-card" data-choice="paper" id="rpsBtnPaper">
+                <span class="card-title">PAPER</span>
+                <svg class="rps-icon rps-icon-paper" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="18" y="14" width="32" height="42" rx="4" fill="var(--dark)" />
+                  <rect x="14" y="10" width="32" height="42" rx="4" fill="#E0F2F1" stroke="var(--dark)" stroke-width="4" stroke-linejoin="round" />
+                  <line x1="20" y1="20" x2="40" y2="20" stroke="var(--dark)" stroke-width="4" stroke-linecap="round" />
+                  <line x1="20" y1="28" x2="40" y2="28" stroke="var(--dark)" stroke-width="4" stroke-linecap="round" />
+                  <line x1="20" y1="36" x2="34" y2="36" stroke="var(--dark)" stroke-width="4" stroke-linecap="round" />
+                  <path d="M38 10 L46 18 L38 18 Z" fill="#B2DFDB" stroke="var(--dark)" stroke-width="4" stroke-linejoin="round" />
+                </svg>
+              </button>
+              <button class="rps-card player-card" data-choice="scissors" id="rpsBtnScissors">
+                <span class="card-title">SCISSORS</span>
+                <svg class="rps-icon rps-icon-scissors" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M20 40 L48 16 L52 20 L24 44 Z" fill="#CFD8DC" stroke="var(--dark)" stroke-width="4" stroke-linejoin="round" />
+                  <path d="M20 24 L48 48 L52 44 L24 20 Z" fill="#CFD8DC" stroke="var(--dark)" stroke-width="4" stroke-linejoin="round" />
+                  <circle cx="16" cy="20" r="10" fill="#FF7043" stroke="var(--dark)" stroke-width="4" />
+                  <circle cx="16" cy="20" r="4" fill="#FFFFFF" stroke="var(--dark)" stroke-width="4" />
+                  <circle cx="16" cy="44" r="10" fill="#FF7043" stroke="var(--dark)" stroke-width="4" />
+                  <circle cx="16" cy="44" r="4" fill="#FFFFFF" stroke="var(--dark)" stroke-width="4" />
+                  <circle cx="22" cy="32" r="3" fill="#FFFFFF" stroke="var(--dark)" stroke-width="3" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Dot Win Trackers -->
+          <div class="rps-scores-area">
+            <div class="rps-score-row">
+              <span class="player-name-label" id="rpsPlayName">You:</span>
+              <div class="dot-tracker" id="rpsPlayDots"></div>
+            </div>
+            <div class="rps-score-row">
+              <span class="player-name-label" id="rpsOppName">Opponent:</span>
+              <div class="dot-tracker" id="rpsOppDots"></div>
+            </div>
+          </div>
+        </div>
+
       </main>
 
       <!-- Bottom Action Area -->
@@ -285,5 +379,6 @@
     <script src="js/tictactoe.js"></script>
     <script src="js/chopsticks.js"></script>
     <script src="js/dotBox.js"></script>
+    <script src="js/rps.js"></script>
   </body>
 </html>

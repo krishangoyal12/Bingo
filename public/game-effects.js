@@ -14,7 +14,7 @@
  * and the winner overlay 200 so particles appear behind the overlay card).
  */
 
-const GameEffects = (() => {
+window.GameEffects = (() => {
     'use strict';
 
     // ── Palette ───────────────────────────────────────────────────────────────

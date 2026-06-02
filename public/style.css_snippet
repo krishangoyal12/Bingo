@@ -1,0 +1,105 @@
+/* Add this to style.css */
+/* 🎮 Boxes Duel Styling 🎮 */
+.dotbox-container {
+    display: grid;
+    /* 19 columns and 19 rows total: 10 dots + 9 lines */
+    /* Dots are 16px wide, boxes/lines are 1fr */
+    grid-template-columns: repeat(9, 16px minmax(30px, 1fr)) 16px;
+    grid-template-rows: repeat(9, 16px minmax(30px, 1fr)) 16px;
+    width: min(90vw, 400px);
+    height: min(90vw, 400px);
+    margin: 0 auto;
+    background: var(--surface);
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: inset 0 4px 10px rgba(0,0,0,0.1),
+                0 0 0 4px rgba(255,255,255,0.1);
+    gap: 4px;
+}
+
+.box-dot {
+    width: 100%;
+    height: 100%;
+    background-color: var(--dark);
+    border-radius: 50%;
+    box-shadow: inset 0 2px 4px rgba(255,255,255,0.2),
+                0 2px 4px rgba(0,0,0,0.5);
+    z-index: 5;
+}
+
+.box-hline, .box-vline {
+    background-color: rgba(0,0,0,0.05);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    z-index: 3;
+    position: relative;
+}
+
+/* Give lines some visual weight when hovered or claimed */
+.box-hline.interactable:hover, .box-vline.interactable:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    transform: scale(1.1);
+}
+
+.box-hline.claimed, .box-vline.claimed {
+    background-color: var(--dark);
+    box-shadow: 0 0 8px rgba(0,0,0,0.4);
+    animation: grow-line 0.2s ease-out;
+}
+
+@keyframes grow-line {
+    from { transform: scale(0.1); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.box-cell {
+    background-color: transparent;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bungee', cursive;
+    font-size: 24px;
+    color: white;
+    transition: all 0.3s ease;
+    z-index: 2;
+    position: relative;
+}
+
+.box-cell.claimed-a {
+    background-color: var(--accent); /* Warm Orange / Pinkish */
+    box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2);
+}
+
+.box-cell.claimed-b {
+    background-color: var(--blue); /* Deep Blue */
+    box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2);
+}
+
+.box-cell.pop-anim {
+    animation: pop-box 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes pop-box {
+    0% { transform: scale(0.8); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.box-score-popup {
+    position: absolute;
+    top: -20px;
+    font-size: 20px;
+    font-weight: bold;
+    font-family: 'Bungee', cursive;
+    animation: float-up 1s ease-out forwards;
+    pointer-events: none;
+    z-index: 10;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+@keyframes float-up {
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-30px) scale(1.5); }
+}

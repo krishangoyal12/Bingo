@@ -56,6 +56,8 @@ html, body {
     padding: 0 24px;
     height: clamp(50px, 8vh, 70px);
     background: #FFFFFF;
+    position: relative;
+    z-index: 210;
     
     border-bottom: 3px solid var(--glass-border);
     flex-shrink: 0;
@@ -430,11 +432,11 @@ input[type="text"]:focus {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 16px;
+    gap: clamp(8px, 1.8vh, 16px);
     background: #FFFFFF;
     
-    border: 3px solid var(--glass-border);
-    padding: clamp(14px, 2.2vh, 24px);
+    border: 3px solid var(--dark);
+    padding: clamp(10px, 2vh, 20px);
     border-radius: 24px;
     box-shadow: var(--glass-shadow);
     animation: fadeIn 0.4s ease;
@@ -481,21 +483,9 @@ input[type="text"]:focus {
     box-shadow: 2px 2px 0 0 var(--dark);
 }
 
-/* Opponent board overrides */
-.opp-board .cell {
-    background: #FFFFFF;
-    border: 3px solid var(--dark);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: clamp(18px, 2.5vh, 26px);
-    font-weight: 700;
-    cursor: pointer;
-    user-select: none;
-    transition: all 0.1s ease;
-    color: var(--dark);
-    box-shadow: 2px 2px 0 0 var(--dark);
+/* Opponent board scale */
+.opp-panel .hero-board {
+    zoom: 0.7;
 }
 
 
@@ -643,6 +633,10 @@ input[type="text"]:focus {
     display: grid;
     place-items: center;
     z-index: 200;
+}
+
+#infoOverlay {
+    z-index: 300;
 }
 
 .text-center {
@@ -941,6 +935,8 @@ input[type="text"]:focus {
     gap: 16px;
     padding: 12px;
     background: #FFFFFF;
+    position: relative;
+    z-index: 210;
     border-bottom: 3px solid var(--dark);
     flex-shrink: 0;
 }
@@ -1437,4 +1433,138 @@ input[type="text"]:focus {
     .redistribute-card {
         width: min(90%, 280px) !important;
     }
+}
+/* Add this to style.css */
+/* 🎮 Boxes Duel Styling 🎮 */
+.dotbox-container {
+    display: grid;
+    grid-template-columns: repeat(9, 8px 1fr) 8px;
+    grid-template-rows: repeat(9, 8px 1fr) 8px;
+    width: clamp(230px, 42vh, 310px);
+    height: clamp(230px, 42vh, 310px);
+    margin: 5px auto;
+    background: #FFFDE7;
+    padding: 8px;
+    border-radius: 16px;
+    border: 3.5px solid var(--dark);
+    box-shadow: 4px 4px 0 0 var(--dark);
+    gap: 0;
+    position: relative;
+    box-sizing: border-box;
+}
+
+.box-dot {
+    width: 6px;
+    height: 6px;
+    background-color: var(--dark);
+    border-radius: 50%;
+    margin: auto;
+    z-index: 5;
+}
+
+.box-hline {
+    height: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 3;
+}
+
+.box-hline::after {
+    content: '';
+    width: 100%;
+    height: 4px;
+    background-color: rgba(0, 0, 0, 0.08);
+    border-radius: 2px;
+    transition: all 0.15s ease;
+}
+
+.box-hline.interactable:hover::after {
+    background-color: rgba(0, 0, 0, 0.25);
+    height: 6px;
+}
+
+.box-hline.claimed::after {
+    background-color: var(--dark);
+    height: 6px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.box-vline {
+    width: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 3;
+}
+
+.box-vline::after {
+    content: '';
+    width: 4px;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.08);
+    border-radius: 2px;
+    transition: all 0.15s ease;
+}
+
+.box-vline.interactable:hover::after {
+    background-color: rgba(0, 0, 0, 0.25);
+    width: 6px;
+}
+
+.box-vline.claimed::after {
+    background-color: var(--dark);
+    width: 6px;
+    box-shadow: 1px 0 2px rgba(0, 0, 0, 0.2);
+}
+
+.box-cell {
+    background-color: transparent;
+    transition: all 0.25s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bungee', cursive;
+    font-size: 14px;
+    font-weight: 900;
+    color: #FFFFFF;
+    user-select: none;
+    z-index: 2;
+}
+
+.box-cell.claimed-a {
+    background-color: var(--blue);
+    text-shadow: 1.5px 1.5px 0 var(--dark);
+    animation: pop-box 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.box-cell.claimed-b {
+    background-color: var(--red);
+    text-shadow: 1.5px 1.5px 0 var(--dark);
+    animation: pop-box 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes pop-box {
+    0% { transform: scale(0.6); opacity: 0; }
+    50% { transform: scale(1.15); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.box-score-popup {
+    position: absolute;
+    top: -15px;
+    font-size: 14px;
+    font-weight: bold;
+    font-family: 'Bungee', cursive;
+    animation: float-up 1s ease-out forwards;
+    pointer-events: none;
+    z-index: 10;
+    text-shadow: 0 1.5px 3px rgba(0,0,0,0.5);
+}
+
+@keyframes float-up {
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-20px) scale(1.4); }
 }

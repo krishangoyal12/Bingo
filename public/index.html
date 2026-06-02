@@ -50,6 +50,7 @@
         <button class="btn btn-tab active" id="btnBingoTab">Bingo</button>
         <button class="btn btn-tab" id="btnTTTTab">Tic Tac Toe</button>
         <button class="btn btn-tab" id="btnChopsticksTab">Chopsticks</button>
+        <button class="btn btn-tab" id="btnDotBoxTab">Boxes</button>
       </div>
 
       <!-- Lobby -->
@@ -142,15 +143,21 @@
           
           <div class="hero-board">
             <div class="board board-ttt" id="tttBoard"></div>
+            <!-- DotBox Game Board -->
+            <div id="dotBoxBoard" class="is-hidden">
+              <div class="dotbox-container" id="dotboxContainer">
+                <!-- Grid injected via JS -->
+              </div>
+            </div>
           </div>
           
           <div class="ttt-players-status">
             <div class="glass-badge" id="tttPlayerXBadge">
-              <span class="muted">Player X (Starts)</span>
+              <span class="muted" id="tttPlayerXLabel">Player X (Starts)</span>
               <span class="highlight" id="tttPlayerXName">-</span>
             </div>
             <div class="glass-badge" id="tttPlayerOBadge">
-              <span class="muted">Player O</span>
+              <span class="muted" id="tttPlayerOLabel">Player O</span>
               <span class="highlight" id="tttPlayerOName">-</span>
             </div>
           </div>
@@ -273,6 +280,10 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="game-effects.js"></script>
-    <script src="app.js"></script>
+    <script src="js/core.js"></script>
+    <script src="js/bingo.js"></script>
+    <script src="js/tictactoe.js"></script>
+    <script src="js/chopsticks.js"></script>
+    <script src="js/dotBox.js"></script>
   </body>
 </html>

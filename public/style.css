@@ -180,6 +180,24 @@ html, body {
     box-shadow: 1px 1px 0 0 var(--red);
 }
 
+.btn-forfeit {
+    background: #FFFFFF;
+    color: var(--blue);
+    border: 3px solid var(--blue);
+    padding: 4px 12px;
+    border-radius: 99px;
+    font-size: clamp(10px, 1.5vh, 12px);
+    box-shadow: 2px 2px 0 0 var(--blue);
+    margin-right: 8px;
+}
+
+.btn-forfeit:hover {
+    background: var(--blue);
+    color: #FFFFFF;
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 0 var(--blue);
+}
+
 .btn-large {
     padding: 10px 24px;
     font-size: 14px;

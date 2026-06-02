@@ -36,6 +36,10 @@ const ui = {
     clearLayoutBtn: byId("clearLayoutBtn"),
     saveLayoutBtn: byId("saveLayoutBtn"),
     disconnectBtn: byId("disconnectBtn"),
+    forfeitBtn: byId("forfeitBtn"),
+    forfeitOverlay: byId("forfeitOverlay"),
+    cancelForfeitBtn: byId("cancelForfeitBtn"),
+    confirmForfeitBtn: byId("confirmForfeitBtn"),
     audioControls: byId("audioControls"),
     muteMicBtn: byId("muteMicBtn"),
     deafenBtn: byId("deafenBtn"),
@@ -578,6 +582,8 @@ function render() {
         ui.gameSelector.classList.add("is-hidden");
         ui.actionArea.classList.add("is-hidden");
         ui.disconnectBtn.classList.add("is-hidden");
+        ui.forfeitBtn.classList.add("is-hidden");
+        ui.forfeitOverlay.classList.add("is-hidden");
         ui.roomCode.textContent = "----";
         ui.youName.textContent = "-";
         ui.readyChip.classList.add("is-hidden");
@@ -590,6 +596,14 @@ function render() {
     if (ui.rpsPanel) ui.rpsPanel.classList.add("is-hidden");
     ui.actionArea.classList.remove("is-hidden");
     ui.disconnectBtn.classList.remove("is-hidden");
+    
+    if (serverState.status === "playing") {
+        ui.forfeitBtn.classList.remove("is-hidden");
+    } else {
+        ui.forfeitBtn.classList.add("is-hidden");
+        ui.forfeitOverlay.classList.add("is-hidden");
+    }
+    
     ui.roomCode.textContent = roomId;
  
     const you = playerSlot;
@@ -1172,6 +1186,24 @@ ui.saveLayoutBtn.addEventListener("click", () => {
     localStorage.setItem("customLayouts", JSON.stringify(customLayouts));
     showToast("Layout saved!");
     buildLayoutButtons();
+});
+
+ui.forfeitBtn.addEventListener("click", () => {
+    sfxButtonClick();
+    ui.forfeitOverlay.classList.remove("is-hidden");
+});
+
+ui.cancelForfeitBtn.addEventListener("click", () => {
+    sfxButtonClick();
+    ui.forfeitOverlay.classList.add("is-hidden");
+});
+
+ui.confirmForfeitBtn.addEventListener("click", () => {
+    sfxButtonClick();
+    ui.forfeitOverlay.classList.add("is-hidden");
+    if (socket && roomId) {
+        socket.emit("forfeitGame");
+    }
 });
 
 ui.disconnectBtn.addEventListener("click", () => {

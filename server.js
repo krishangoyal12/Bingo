@@ -392,6 +392,29 @@ io.on("connection", (socket) => {
     
     
     
+    socket.on("forfeitGame", () => {
+        const roomId = socket.data.roomId;
+        const slot = socket.data.playerSlot;
+        const room = rooms.get(roomId);
+        if (!room || !slot) return;
+        if (room.status !== "playing") return;
+        
+        clearTurnTimer(room);
+        if (room.rpsTimer) {
+            clearTimeout(room.rpsTimer);
+            room.rpsTimer = null;
+        }
+        
+        room.status = "finished";
+        room.winner = slot === "A" ? "B" : "A";
+        
+        if (room.score) {
+            room.score[room.winner] = (room.score[room.winner] || 0) + 1;
+        }
+        
+        broadcastState(roomId);
+    });
+
     socket.on("leaveRoom", () => {
         const roomId = socket.data.roomId;
         const slot = socket.data.playerSlot;

@@ -53,6 +53,7 @@
         <button class="btn btn-tab" id="btnChopsticksTab">Chopsticks</button>
         <button class="btn btn-tab" id="btnDotBoxTab">Boxes</button>
         <button class="btn btn-tab" id="btnRpsTab">RPS</button>
+        <button class="btn btn-tab" id="btnConnect5Tab">Connect 4</button>
       </div>
 
       <!-- Lobby -->
@@ -319,6 +320,52 @@
           </div>
         </div>
 
+        <!-- Connect 5 Panel -->
+        <div class="player-panel connect5-panel is-hidden" id="connect5Panel">
+          <div class="panel-header">
+            <div class="glass-badge turn-badge" id="c5TurnIndicator">YOUR TURN</div>
+            <div class="glass-badge line-badge">
+              <span class="muted">Connect 4 Battle</span>
+            </div>
+          </div>
+
+          <!-- Score area for Connect 5 -->
+          <div class="c5-scoreboard">
+            <div class="c5-score-player player-a">
+              <span class="c5-player-name" id="c5PlayerAName">Player A</span>
+              <div class="c5-score-stars" id="c5PlayerAStars">☆☆☆☆☆</div>
+            </div>
+            <div class="c5-score-vs">VS</div>
+            <div class="c5-score-player player-b">
+              <span class="c5-player-name" id="c5PlayerBName">Player B</span>
+              <div class="c5-score-stars" id="c5PlayerBStars">☆☆☆☆☆</div>
+            </div>
+          </div>
+
+          <!-- Interactive Board Area -->
+          <div class="c5-game-area">
+            <!-- Ghost preview row (above the board, showing where token falls) -->
+            <div class="c5-ghost-row" id="c5GhostRow">
+              <div class="c5-ghost-slot" data-col="0"></div>
+              <div class="c5-ghost-slot" data-col="1"></div>
+              <div class="c5-ghost-slot" data-col="2"></div>
+              <div class="c5-ghost-slot" data-col="3"></div>
+              <div class="c5-ghost-slot" data-col="4"></div>
+              <div class="c5-ghost-slot" data-col="5"></div>
+              <div class="c5-ghost-slot" data-col="6"></div>
+            </div>
+
+            <!-- The Grid Board itself -->
+            <div class="c5-board-wrapper">
+              <div class="c5-board-frame" id="c5Board">
+                <!-- Built dynamically in connect5.js -->
+              </div>
+            </div>
+          </div>
+          
+          <div class="c5-status-bar" id="c5StatusBar">Drop a token to make a move</div>
+        </div>
+
       </main>
 
       <!-- Bottom Action Area -->
@@ -393,5 +440,6 @@
     <script src="js/chopsticks.js"></script>
     <script src="js/dotBox.js"></script>
     <script src="js/rps.js"></script>
+    <script src="js/connect5.js"></script>
   </body>
 </html>

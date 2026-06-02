@@ -3,6 +3,7 @@ const registerTTTEvents = require('./server/games/tictactoe');
 const registerChopsticksEvents = require('./server/games/chopsticks');
 const registerDotBoxEvents = require('./server/games/dotBox');
 const { registerRPSEvents, startRpsRound } = require('./server/games/rps');
+const { registerConnect5Events, initConnect5Board } = require('./server/games/connect5');
 
 const path = require("path");
 const express = require("express");
@@ -91,6 +92,7 @@ function buildState(roomId) {
         chopsticks: room.chopsticks || { A: { left: 1, right: 1 }, B: { left: 1, right: 1 } },
         dotBox: room.dotBox || null,
         rps: room.rps || null,
+        connect5: room.connect5 || null,
         score: room.score || { A: 0, B: 0 },
         players: {
             A: {
@@ -137,6 +139,7 @@ function resetRoom(room) {
     room.round += 1;
     room.tttBoard = Array(9).fill(null);
     room.chopsticks = { A: { left: 1, right: 1 }, B: { left: 1, right: 1 } };
+    room.connect5 = null;
 }
 
 function removePlayer(roomId, slot) {
@@ -186,6 +189,7 @@ io.on("connection", (socket) => {
                 boxes: Array(9).fill(null).map(() => Array(9).fill(null))
             },
             rps: null,
+            connect5: null,
             rpsTargetWins: 3, // Best of 5 (first to 3) by default
             score: { A: 0, B: 0 },
         };
@@ -228,6 +232,7 @@ io.on("connection", (socket) => {
         registerChopsticksEvents(io, socket, rooms, broadcastState, startTurnTimer, clearTurnTimer);
         registerDotBoxEvents(io, socket, rooms, broadcastState, startTurnTimer, clearTurnTimer);
         registerRPSEvents(io, socket, rooms, broadcastState);
+        registerConnect5Events(io, socket, rooms, broadcastState, startTurnTimer, clearTurnTimer);
 
         socket.on("rejoinRoom", ({ roomId, sessionId }) => {
         const room = rooms.get(roomId);
@@ -265,8 +270,9 @@ io.on("connection", (socket) => {
         const isChopRematch = room.gameType === "chopsticks" && (room.score.A > 0 || room.score.B > 0);
         const isDotBoxRematch = room.gameType === "dotBox" && (room.score.A > 0 || room.score.B > 0);
         const isRpsRematch = room.gameType === "rps" && (room.score.A > 0 || room.score.B > 0);
+        const isConnect5Rematch = room.gameType === "connect5" && (room.score.A > 0 || room.score.B > 0);
         
-        if (isTTTRematch || isChopRematch || isDotBoxRematch || isRpsRematch) {
+        if (isTTTRematch || isChopRematch || isDotBoxRematch || isRpsRematch || isConnect5Rematch) {
             clearTurnTimer(room);
             room.ready.A = true;
             room.ready.B = true;
@@ -290,6 +296,14 @@ io.on("connection", (socket) => {
                 };
                 room.status = "playing";
                 startRpsRound(roomId, rooms, io, broadcastState);
+            } else if (room.gameType === "connect5") {
+                room.connect5 = {
+                    board: initConnect5Board(),
+                    scores: { A: 0, B: 0 },
+                    scored: { A: [], B: [] },
+                    lastMove: null
+                };
+                room.status = "playing";
             } else {
                 room.status = "playing";
                 // Alternate starting player based on round
@@ -311,7 +325,7 @@ io.on("connection", (socket) => {
             socket.emit("errorMessage", "Cannot change game type mid-game.");
             return;
         }
-        if (gameType !== "bingo" && gameType !== "tictactoe" && gameType !== "chopsticks" && gameType !== "dotBox" && gameType !== "rps") {
+        if (gameType !== "bingo" && gameType !== "tictactoe" && gameType !== "chopsticks" && gameType !== "dotBox" && gameType !== "rps" && gameType !== "connect5") {
             socket.emit("errorMessage", "Invalid game type.");
             return;
         }
@@ -332,6 +346,7 @@ io.on("connection", (socket) => {
         room.tttBoard = Array(9).fill(null);
         room.chopsticks = { A: { left: 1, right: 1 }, B: { left: 1, right: 1 } };
         room.rps = null;
+        room.connect5 = null;
         room.turn = "A";
         clearTurnTimer(room);
         
@@ -350,7 +365,7 @@ io.on("connection", (socket) => {
         const room = rooms.get(roomId);
         if (!room || !slot) return;
         if (room.status !== "setup") return;
-        if (room.gameType !== "tictactoe" && room.gameType !== "chopsticks" && room.gameType !== "dotBox" && room.gameType !== "rps") {
+        if (room.gameType !== "tictactoe" && room.gameType !== "chopsticks" && room.gameType !== "dotBox" && room.gameType !== "rps" && room.gameType !== "connect5") {
             socket.emit("errorMessage", "Ready state only toggled directly in setup-free modes.");
             return;
         }
@@ -381,6 +396,13 @@ io.on("connection", (socket) => {
                 };
                 startRpsRound(roomId, rooms, io, broadcastState);
                 return;
+            } else if (room.gameType === "connect5") {
+                room.connect5 = {
+                    board: initConnect5Board(),
+                    scores: { A: 0, B: 0 },
+                    scored: { A: [], B: [] },
+                    lastMove: null
+                };
             }
             if (room.gameType !== "rps" && room.gameType !== "dotBox") {
                 startTurnTimer(roomId);

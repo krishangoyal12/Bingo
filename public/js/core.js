@@ -52,6 +52,16 @@ const ui = {
     btnChopsticksTab: byId("btnChopsticksTab"),
     btnDotBoxTab: byId("btnDotBoxTab"),
     btnRpsTab: byId("btnRpsTab"),
+    btnConnect5Tab: byId("btnConnect5Tab"),
+    connect5Panel: byId("connect5Panel"),
+    c5Board: byId("c5Board"),
+    c5GhostRow: byId("c5GhostRow"),
+    c5TurnIndicator: byId("c5TurnIndicator"),
+    c5PlayerAName: byId("c5PlayerAName"),
+    c5PlayerBName: byId("c5PlayerBName"),
+    c5PlayerAStars: byId("c5PlayerAStars"),
+    c5PlayerBStars: byId("c5PlayerBStars"),
+    c5StatusBar: byId("c5StatusBar"),
     btnLeave: byId("btnLeave"),
     tttPanel: byId("tttPanel"),
     tttBoard: byId("tttBoard"),
@@ -679,17 +689,21 @@ function render() {
     ui.btnChopsticksTab.classList.toggle("active", serverState.gameType === "chopsticks");
     ui.btnDotBoxTab.classList.toggle("active", serverState.gameType === "dotBox");
     ui.btnRpsTab.classList.toggle("active", serverState.gameType === "rps");
+    ui.btnConnect5Tab.classList.toggle("active", serverState.gameType === "connect5");
     // Lock non-active tabs while a game is in progress
     ui.btnBingoTab.classList.toggle("tab-locked", isPlaying && serverState.gameType !== "bingo");
     ui.btnTTTTab.classList.toggle("tab-locked", isPlaying && serverState.gameType !== "tictactoe");
     ui.btnChopsticksTab.classList.toggle("tab-locked", isPlaying && serverState.gameType !== "chopsticks");
     ui.btnDotBoxTab.classList.toggle("tab-locked", isPlaying && serverState.gameType !== "dotBox");
     ui.btnRpsTab.classList.toggle("tab-locked", isPlaying && serverState.gameType !== "rps");
+    ui.btnConnect5Tab.classList.toggle("tab-locked", isPlaying && serverState.gameType !== "connect5");
 
     if (serverState.gameType === "bingo") {
         ui.tttPanel.classList.add("is-hidden");
         ui.chopsticksPanel.classList.add("is-hidden");
         if (ui.dotBoxBoard) ui.dotBoxBoard.classList.add("is-hidden");
+        ui.rpsPanel.classList.add("is-hidden");
+        ui.connect5Panel.classList.add("is-hidden");
         ui.bingoPlayerPanel.classList.remove("is-hidden");
         ui.nextNumber.closest(".next-number-badge")?.classList.remove("is-hidden");
 
@@ -920,6 +934,36 @@ function render() {
         }
 
         renderRPS();
+    } else if (serverState.gameType === "connect5") {
+        ui.bingoPlayerPanel.classList.add("is-hidden");
+        ui.tttPanel.classList.add("is-hidden");
+        ui.chopsticksPanel.classList.add("is-hidden");
+        if (ui.dotBoxBoard) ui.dotBoxBoard.classList.add("is-hidden");
+        ui.rpsPanel.classList.add("is-hidden");
+        ui.connect5Panel.classList.remove("is-hidden");
+        if (ui.layoutRow) ui.layoutRow.classList.add("is-hidden");
+        ui.oppBoardWrap.classList.add("is-hidden");
+        
+        ui.nextNumber.closest(".next-number-badge")?.classList.add("is-hidden");
+        
+        ui.readyBtn.disabled = !!youInfo.ready;
+        ui.readyBtn.classList.toggle("is-hidden", serverState.status !== "setup");
+        localState.ready = !!youInfo.ready;
+        ui.nextNumber.textContent = youInfo.ready ? "done" : "play";
+        
+        if (serverState.status === "setup") {
+            ui.c5TurnIndicator.textContent = "Tap Ready to start duel";
+            ui.timerBar.classList.add("is-hidden");
+            stopTimerAnimation();
+        } else if (serverState.status === "playing") {
+            ui.c5TurnIndicator.textContent = isYourTurn ? "⚡ Your turn to drop!" : "⏳ Opponent is deciding...";
+            startTimerAnimation();
+        } else {
+            ui.timerBar.classList.add("is-hidden");
+            stopTimerAnimation();
+        }
+
+        renderConnect5();
     }
 
     // Win screen
@@ -933,18 +977,21 @@ function render() {
             tictactoe: "You got 3 in a row!",
             chopsticks: "You eliminated both opponent hands!",
             dotBox: "You claimed the most boxes!",
+            connect5: "You scored 5 combo points first!",
         };
         const loseSubMap = {
             bingo: "Opponent completed 5 lines first",
             tictactoe: "Opponent got 3 in a row",
             chopsticks: "Both your hands were eliminated",
             dotBox: "Opponent claimed more boxes",
+            connect5: "Opponent scored 5 combo points first",
         };
         const tieSubMap = {
             bingo: "Both hit 5 lines at the same time",
             tictactoe: "No spaces left on the board",
             chopsticks: "It's a draw",
             dotBox: "It's a tie",
+            connect5: "The board was filled!",
         };
 
         if (winner === "TIE") {
@@ -1232,8 +1279,9 @@ const GAME_DISPLAY_NAMES = {
     bingo: "Bingo",
     tictactoe: "Tic Tac Toe",
     chopsticks: "Chopsticks",
-    dotBox: "Dot Box",
-    rps: "RPS Duel",
+    dotBox: "Boxes",
+    rps: "RPS",
+    connect5: "Connect 4"
 };
 
 function handleTabClick(targetGameType) {
@@ -1254,6 +1302,7 @@ ui.btnTTTTab.addEventListener("click", () => handleTabClick("tictactoe"));
 ui.btnChopsticksTab.addEventListener("click", () => handleTabClick("chopsticks"));
 ui.btnDotBoxTab.addEventListener("click", () => handleTabClick("dotBox"));
 ui.btnRpsTab.addEventListener("click", () => handleTabClick("rps"));
+ui.btnConnect5Tab.addEventListener("click", () => handleTabClick("connect5"));
 
 ui.chopPlayLeftHand.addEventListener("click", () => handlePlayerHandClick("left"));
 ui.chopPlayRightHand.addEventListener("click", () => handlePlayerHandClick("right"));

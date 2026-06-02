@@ -266,11 +266,11 @@ io.on("connection", (socket) => {
         const room = rooms.get(roomId);
         if (!room) return;
         
-        const isTTTRematch = room.gameType === "tictactoe" && (room.score.A > 0 || room.score.B > 0);
-        const isChopRematch = room.gameType === "chopsticks" && (room.score.A > 0 || room.score.B > 0);
-        const isDotBoxRematch = room.gameType === "dotBox" && (room.score.A > 0 || room.score.B > 0);
-        const isRpsRematch = room.gameType === "rps" && (room.score.A > 0 || room.score.B > 0);
-        const isConnect5Rematch = room.gameType === "connect5" && (room.score.A > 0 || room.score.B > 0);
+        const isTTTRematch = room.gameType === "tictactoe" && (room.status === "finished" || room.score.A > 0 || room.score.B > 0);
+        const isChopRematch = room.gameType === "chopsticks" && (room.status === "finished" || room.score.A > 0 || room.score.B > 0);
+        const isDotBoxRematch = room.gameType === "dotBox" && (room.status === "finished" || room.score.A > 0 || room.score.B > 0);
+        const isRpsRematch = room.gameType === "rps" && (room.status === "finished" || room.score.A > 0 || room.score.B > 0);
+        const isConnect5Rematch = room.gameType === "connect5" && (room.status === "finished" || room.score.A > 0 || room.score.B > 0);
         
         if (isTTTRematch || isChopRematch || isDotBoxRematch || isRpsRematch || isConnect5Rematch) {
             clearTurnTimer(room);

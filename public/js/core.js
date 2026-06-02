@@ -117,6 +117,8 @@ const ui = {
     rpsFaceoff: byId("rpsFaceoff"),
     fighterLeft: byId("fighterLeft"),
     fighterRight: byId("fighterRight"),
+    playSoloBtn: byId("playSoloBtn"),
+    soloDifficultyWrap: byId("soloDifficultyWrap"),
 };
 
 const localState = {
@@ -590,6 +592,7 @@ function render() {
         ui.lobby.classList.remove("is-hidden");
         ui.game.classList.add("is-hidden");
         ui.gameSelector.classList.add("is-hidden");
+        ui.soloDifficultyWrap.classList.add("is-hidden");
         ui.actionArea.classList.add("is-hidden");
         ui.disconnectBtn.classList.add("is-hidden");
         ui.forfeitBtn.classList.add("is-hidden");
@@ -684,6 +687,10 @@ function render() {
     // Toggle panel visibility and Selector active states
     const isPlaying = serverState.status === "playing";
     ui.gameSelector.classList.remove("is-hidden"); // always visible once in a room
+    ui.soloDifficultyWrap.classList.toggle("is-hidden", roomId !== "SOLO_ROOM");
+    document.querySelectorAll(".btn-difficulty").forEach(btn => {
+        btn.disabled = isPlaying;
+    });
     ui.btnBingoTab.classList.toggle("active", serverState.gameType === "bingo");
     ui.btnTTTTab.classList.toggle("active", serverState.gameType === "tictactoe");
     ui.btnChopsticksTab.classList.toggle("active", serverState.gameType === "chopsticks");
@@ -1023,11 +1030,37 @@ function render() {
 
 // ── Socket ──
 function setupSocket() {
+    window.soloCallbacks = window.soloCallbacks || {};
+
     if (typeof io === "undefined") {
-        showToast("Server not running. Start server.js first.");
+        // Create dummy socket so offline mode works without running server
+        socket = {
+            on(event, cb) {
+                window.soloCallbacks[event] = cb;
+            },
+            emit(event, data) {
+                if (roomId === "SOLO_ROOM" && window.soloEngine) {
+                    window.soloEngine.handleEvent(event, data);
+                }
+            }
+        };
+        window.socket = socket;
         return;
     }
+    
     socket = io();
+
+    // Intercept emit for solo room redirect
+    const originalEmit = socket.emit;
+    socket.emit = function(event, data) {
+        if (roomId === "SOLO_ROOM" && window.soloEngine) {
+            window.soloEngine.handleEvent(event, data);
+        } else {
+            originalEmit.apply(this, arguments);
+        }
+    };
+
+    window.socket = socket;
 
     socket.on("connect", () => {
         setConnectionStatus(true);
@@ -1059,7 +1092,7 @@ function setupSocket() {
         render();
     });
 
-    socket.on("state", (state) => {
+    const onState = (state) => {
         serverState = state;
         if (lastRound !== state.round) {
             resetLocalBoard();
@@ -1075,17 +1108,23 @@ function setupSocket() {
             roomId = state.roomId;
         }
         render();
-    });
+    };
+    socket.on("state", onState);
+    window.soloCallbacks["state"] = onState;
 
-    socket.on("errorMessage", (message) => {
+    const onError = (message) => {
         showToast(message);
         sfxInvalidAction();
-    });
+    };
+    socket.on("errorMessage", onError);
+    window.soloCallbacks["errorMessage"] = onError;
     
-    socket.on("bonusTurn", (payload) => {
+    const onBonus = (payload) => {
         const count = payload.count || 1;
         showToast(`BONUS TURN! (+${count})`);
-    });
+    };
+    socket.on("bonusTurn", onBonus);
+    window.soloCallbacks["bonusTurn"] = onBonus;
 
     socket.on("webrtc-offer", async (offer) => {
         console.log("WebRTC socket: Received offer from opponent");
@@ -1172,6 +1211,23 @@ ui.createRoomBtn.addEventListener("click", () => {
     }
     localStorage.setItem("displayName", name);
     socket.emit("createRoom", { name, sessionId });
+});
+
+ui.playSoloBtn.addEventListener("click", () => {
+    const name = ui.nameInput.value.trim() || "You";
+    localStorage.setItem("displayName", name);
+
+    if (!socket) {
+        setupSocket();
+    }
+
+    roomId = "SOLO_ROOM";
+    playerSlot = "A";
+    localStorage.setItem("roomId", roomId);
+
+    if (window.soloEngine) {
+        window.soloEngine.init(name, localState.botDifficulty || "medium");
+    }
 });
 
 ui.joinRoomBtn.addEventListener("click", () => {
@@ -1271,6 +1327,9 @@ ui.disconnectBtn.addEventListener("click", () => {
     stopTimerAnimation();
     stopVoiceChat();
     ui.roomInput.value = "";
+    ui.winnerOverlay.classList.add("is-hidden");
+    ui.forfeitOverlay.classList.add("is-hidden");
+    setupSocket(); // Re-establish real socket.io connection if in solo mode
     render();
     showToast("Left the room.");
 });
@@ -1501,6 +1560,41 @@ if (savedName) {
     ui.nameInput.value = savedName;
 }
 
+// Bot Difficulty Settings
+localState.botDifficulty = localStorage.getItem("botDifficulty") || "medium";
+
+function updateDifficultyUI(diff) {
+    const easyBtn = document.getElementById("btnDiffEasy");
+    const medBtn = document.getElementById("btnDiffMedium");
+    const hardBtn = document.getElementById("btnDiffHard");
+    if (!easyBtn || !medBtn || !hardBtn) return;
+    
+    easyBtn.classList.toggle("active", diff === "easy");
+    medBtn.classList.toggle("active", diff === "medium");
+    hardBtn.classList.toggle("active", diff === "hard");
+}
+
+document.querySelectorAll(".btn-difficulty").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+        if (serverState && serverState.status === "playing") {
+            sfxInvalidAction();
+            showToast("Cannot change difficulty mid-game.");
+            return;
+        }
+        sfxButtonClick();
+        const diff = e.currentTarget.getAttribute("data-diff");
+        localState.botDifficulty = diff;
+        localStorage.setItem("botDifficulty", diff);
+        updateDifficultyUI(diff);
+        if (socket && roomId === "SOLO_ROOM") {
+            socket.emit("setBotDifficulty", { difficulty: diff });
+        }
+    });
+});
+
+// Initialize active difficulty UI on load
+updateDifficultyUI(localState.botDifficulty);
+
 // ── WebRTC Voice Chat ──
 let peerConnection = null;
 let localStream = null;
@@ -1631,6 +1725,7 @@ function stopVoiceChat() {
 
 async function checkAndConnectVoice() {
     if (!serverState || !roomId) return;
+    if (roomId === "SOLO_ROOM") return;
     const players = serverState.players || {};
     if (players.A && players.A.connected && players.B && players.B.connected) {
         if (!peerConnection && !voiceDenied) {
@@ -1690,5 +1785,15 @@ ui.muteGameBtn.addEventListener("click", () => {
 
 window.addEventListener("DOMContentLoaded", () => {
     setupSocket();
+    const savedRoomId = localStorage.getItem("roomId");
+    if (savedRoomId === "SOLO_ROOM") {
+        roomId = "SOLO_ROOM";
+        playerSlot = "A";
+        setTimeout(() => {
+            if (window.soloEngine && window.soloEngine.restore) {
+                window.soloEngine.restore();
+            }
+        }, 100);
+    }
     render();
 });

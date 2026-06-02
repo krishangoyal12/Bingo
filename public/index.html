@@ -47,13 +47,23 @@
       <audio id="remoteAudio" autoplay></audio>
 
       <!-- Game Selector Navigation -->
-      <div class="game-selector-wrap is-hidden" id="gameSelector">
+      <div class="game-selector-wrap is-hidden" id="gameSelector" style="position: relative;">
         <button class="btn btn-tab active" id="btnBingoTab">Bingo</button>
         <button class="btn btn-tab" id="btnTTTTab">Tic Tac Toe</button>
         <button class="btn btn-tab" id="btnChopsticksTab">Chopsticks</button>
         <button class="btn btn-tab" id="btnDotBoxTab">Boxes</button>
         <button class="btn btn-tab" id="btnRpsTab">RPS</button>
         <button class="btn btn-tab" id="btnConnect5Tab">Connect 4</button>
+        
+        <!-- Bot Level selector visible only in Solo mode -->
+        <div class="difficulty-wrap is-hidden" id="soloDifficultyWrap" style="position: absolute; right: 24px; display: flex; align-items: center; gap: 8px;">
+          <span class="muted" style="font-size: 13px; font-weight: 600;">Bot Level:</span>
+          <div class="btn-group-difficulty">
+            <button class="btn-difficulty" id="btnDiffEasy" data-diff="easy">Easy</button>
+            <button class="btn-difficulty active" id="btnDiffMedium" data-diff="medium">Medium</button>
+            <button class="btn-difficulty" id="btnDiffHard" data-diff="hard">Hard</button>
+          </div>
+        </div>
       </div>
 
       <!-- Lobby -->
@@ -79,6 +89,12 @@
                 <button class="btn btn-secondary" id="joinRoomBtn">Join</button>
               </div>
             </div>
+          </div>
+
+          <div class="lobby-divider"></div>
+
+          <div class="lobby-solo-action" style="width: 100%;">
+            <button class="btn btn-accent btn-full btn-large" id="playSoloBtn">Play Solo vs. AI Bot 👾</button>
           </div>
         </div>
       </section>
@@ -432,8 +448,15 @@
       </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
+     <script src="/socket.io/socket.io.js"></script>
     <script src="game-effects.js"></script>
+    <script src="js/soloEngine/connect5.js"></script>
+    <script src="js/soloEngine/tictactoe.js"></script>
+    <script src="js/soloEngine/chopsticks.js"></script>
+    <script src="js/soloEngine/dotBox.js"></script>
+    <script src="js/soloEngine/rps.js"></script>
+    <script src="js/soloEngine/bingo.js"></script>
+    <script src="js/soloEngine.js"></script>
     <script src="js/core.js"></script>
     <script src="js/bingo.js"></script>
     <script src="js/tictactoe.js"></script>

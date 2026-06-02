@@ -100,7 +100,7 @@ function renderChopsticks() {
     const options = canRedistribute ? getRedistributeOptions(youHands.left, youHands.right) : [];
     const onlyOneHandLeft = (youHands.left > 0 && youHands.right === 0) || (youHands.right > 0 && youHands.left === 0);
     
-    // Auto-select player's hand if only one hand is left
+    // Auto-select player's hand if only one hand is left or if both hands have the same number of fingers
     if (isYourTurn && localState.selectedChopHand === null) {
         const leftAlive = youHands.left > 0;
         const rightAlive = youHands.right > 0;
@@ -108,6 +108,8 @@ function renderChopsticks() {
             localState.selectedChopHand = "left";
         } else if (rightAlive && !leftAlive) {
             localState.selectedChopHand = "right";
+        } else if (leftAlive && rightAlive && youHands.left === youHands.right) {
+            localState.selectedChopHand = "left";
         }
         
         // Auto-attack at start of turn ONLY if opponent has only one hand left AND player has no redistribution options
@@ -254,7 +256,7 @@ function renderChopsticks() {
                 ui.chopActionStatus.textContent = "YOUR TURN: Select an opponent's hand to attack";
                 ui.btnChopCancelAction.classList.toggle("is-hidden", onlyOneHandLeft);
             }
-            ui.btnChopRedistribute.classList.toggle("is-hidden", options.length === 0 || (localState.selectedChopHand !== null && !onlyOneHandLeft));
+            ui.btnChopRedistribute.classList.toggle("is-hidden", options.length === 0);
         } else {
             ui.chopActionStatus.textContent = "OPPONENT'S TURN";
             ui.btnChopRedistribute.classList.add("is-hidden");

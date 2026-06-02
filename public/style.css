@@ -150,6 +150,19 @@ html, body {
     box-shadow: 2px 2px 0 0 var(--dark);
 }
 
+.btn-accent {
+    background: var(--yellow);
+    color: var(--dark);
+    border: 3px solid var(--dark);
+    box-shadow: 4px 4px 0 0 var(--dark);
+}
+
+.btn-accent:not(:disabled):hover {
+    background: var(--accent-hover);
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 0 var(--dark);
+}
+
 .btn-ghost {
     background: transparent;
     color: var(--text-muted);
@@ -2415,6 +2428,60 @@ input[type="text"]:focus {
     20% { transform: translateY(-15px) scale(1.2); opacity: 1; }
     80% { transform: translateY(-40px) scale(1); opacity: 1; }
     100% { transform: translateY(-60px) scale(0.8); opacity: 0; }
+}
+
+.btn-group-difficulty {
+    display: flex;
+    border: 3px solid var(--dark);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #FFFFFF;
+    box-shadow: 2px 2px 0 0 var(--dark);
+}
+
+.btn-difficulty {
+    border: none;
+    background: transparent;
+    padding: 6px 12px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text-muted);
+    border-right: 3px solid var(--dark);
+}
+
+.btn-difficulty:last-child {
+    border-right: none;
+}
+
+.btn-difficulty.active {
+    background: var(--yellow) !important;
+    color: var(--dark) !important;
+}
+
+.btn-difficulty:hover:not(.active) {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.btn-difficulty:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+@media (max-width: 900px) {
+    .game-selector-wrap {
+        flex-wrap: wrap;
+        height: auto !important;
+    }
+    #soloDifficultyWrap {
+        position: static !important;
+        width: 100%;
+        justify-content: center;
+        margin-top: 8px;
+    }
 }
 
 

@@ -268,5 +268,60 @@ window.GameEffects = (() => {
         effectsEl?.remove(); effectsEl = null;
     }
 
-    return { win, lose, tie, clear };
+    /**
+     * Spawns a giant central neo-brutalist card reaction and a shower of floating reactions.
+     */
+    function spawnSticker(emoji, senderName, isSelf = false) {
+        // 1. Spawn central neo-brutalist card
+        const card = document.createElement("div");
+        card.className = "sticker-popup-card";
+        
+        const emojiEl = document.createElement("span");
+        emojiEl.className = "sticker-popup-emoji";
+        emojiEl.textContent = emoji;
+        card.appendChild(emojiEl);
+        
+        if (!isSelf) {
+            const label = document.createElement("span");
+            label.className = "sticker-popup-label";
+            label.textContent = `From ${senderName}`;
+            card.appendChild(label);
+        }
+        
+        document.body.appendChild(card);
+        
+        // Remove card after animation finishes (2000ms)
+        setTimeout(() => {
+            card.remove();
+        }, 2000);
+
+        if (!isSelf) {
+            // 2. Spawn 15 floating background reactions
+            for (let i = 0; i < 15; i++) {
+                const reaction = document.createElement("div");
+                reaction.className = "floating-sticker-reaction";
+                reaction.textContent = emoji;
+                
+                // Random horizontal positioning, delay, duration and drift
+                const left = rand(5, 95);
+                const delay = rand(0, 800);
+                const duration = rand(2000, 3500);
+                const drift = rand(-60, 60);
+                
+                reaction.style.left = `${left}%`;
+                reaction.style.setProperty("--delay", `${delay}ms`);
+                reaction.style.setProperty("--duration", `${duration}ms`);
+                reaction.style.setProperty("--drift", `${drift}px`);
+                
+                document.body.appendChild(reaction);
+                
+                // Clean up reaction element after it finishes floating
+                setTimeout(() => {
+                    reaction.remove();
+                }, delay + duration + 100);
+            }
+        }
+    }
+
+    return { win, lose, tie, clear, spawnSticker };
 })();

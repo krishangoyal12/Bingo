@@ -6,13 +6,13 @@ window.soloBots.dotBox = {
         const hMoves = [];
         const vMoves = [];
 
-        for (let r = 0; r < 10; r++) {
-            for (let c = 0; c < 9; c++) {
+        for (let r = 0; r < 9; r++) {
+            for (let c = 0; c < 8; c++) {
                 if (!state.hLines[r][c]) hMoves.push({ type: "h", r, c });
             }
         }
-        for (let r = 0; r < 9; r++) {
-            for (let c = 0; c < 10; c++) {
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 9; c++) {
                 if (!state.vLines[r][c]) vMoves.push({ type: "v", r, c });
             }
         }
@@ -21,7 +21,7 @@ window.soloBots.dotBox = {
         if (allMoves.length === 0) return null;
 
         const getBoxLineCounts = (br, bc) => {
-            if (br < 0 || br >= 9 || bc < 0 || bc >= 9) return 0;
+            if (br < 0 || br >= 8 || bc < 0 || bc >= 8) return 0;
             let count = 0;
             if (state.hLines[br][bc]) count++;
             if (state.hLines[br+1][bc]) count++;
@@ -46,7 +46,7 @@ window.soloBots.dotBox = {
             let willSetPlayerUp = false;
 
             for (const box of adjacentBoxes) {
-                if (box.r < 0 || box.r >= 9 || box.c < 0 || box.c >= 9) continue;
+                if (box.r < 0 || box.r >= 8 || box.c < 0 || box.c >= 8) continue;
                 if (state.boxes[box.r][box.c] !== null) continue;
 
                 const lines = getBoxLineCounts(box.r, box.c);

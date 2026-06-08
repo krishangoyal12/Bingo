@@ -31,9 +31,10 @@ window.soloEngine = (function() {
             tttBoard: Array(9).fill(null),
             chopsticks: { A: { left: 1, right: 1 }, B: { left: 1, right: 1 } },
             dotBox: {
-                hLines: Array(10).fill(null).map(() => Array(9).fill(false)),
-                vLines: Array(9).fill(null).map(() => Array(10).fill(false)),
-                boxes: Array(9).fill(null).map(() => Array(9).fill(null))
+                hLines: Array(9).fill(null).map(() => Array(8).fill(false)),
+                vLines: Array(8).fill(null).map(() => Array(9).fill(false)),
+                boxes: Array(8).fill(null).map(() => Array(8).fill(null)),
+                lastMove: null
             },
             rps: null,
             connect5: {
@@ -48,7 +49,8 @@ window.soloEngine = (function() {
                 B: { name: `RetroBot 👾 (${diffLabel})`, ready: true, connected: true, socketId: "bot" }
             },
             boards: { A: null, B: null },
-            lines: { A: 0, B: 0 }
+            lines: { A: 0, B: 0 },
+            chatHistory: []
         };
         broadcastState();
     }
@@ -213,6 +215,8 @@ window.soloEngine = (function() {
         } else if (event === "callNumber") {
             if (mockState.turn !== "A") return;
             handleBingoCall(data.number, "A");
+        } else if (event === "sendChatMessage") {
+            handleSoloChatMessage(data.message);
         }
     }
 
@@ -225,9 +229,10 @@ window.soloEngine = (function() {
             if (!keepScore) mockState.score = { A: 0, B: 0 };
         } else if (gameType === "dotBox") {
             mockState.dotBox = {
-                hLines: Array(10).fill(null).map(() => Array(9).fill(false)),
-                vLines: Array(9).fill(null).map(() => Array(10).fill(false)),
-                boxes: Array(9).fill(null).map(() => Array(9).fill(null))
+                hLines: Array(9).fill(null).map(() => Array(8).fill(false)),
+                vLines: Array(8).fill(null).map(() => Array(9).fill(false)),
+                boxes: Array(8).fill(null).map(() => Array(8).fill(null)),
+                lastMove: null
             };
             if (!keepScore) mockState.score = { A: 0, B: 0 };
         } else if (gameType === "rps") {
@@ -476,10 +481,11 @@ window.soloEngine = (function() {
         } else {
             state.vLines[r][c] = true;
         }
+        state.lastMove = { type, r, c, player, timestamp: Date.now() };
 
         let completed = 0;
         const checkBox = (br, bc) => {
-            if (br < 0 || br >= 9 || bc < 0 || bc >= 9) return false;
+            if (br < 0 || br >= 8 || bc < 0 || bc >= 8) return false;
             if (state.boxes[br][bc] !== null) return false;
 
             if (state.hLines[br][bc] && state.hLines[br+1][bc] &&
@@ -501,12 +507,12 @@ window.soloEngine = (function() {
 
         // Check win
         let total = 0;
-        for (let row = 0; row < 9; row++) {
-            for (let col = 0; col < 9; col++) {
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
                 if (state.boxes[row][col] !== null) total++;
             }
         }
-        const isGameOver = (total === 81);
+        const isGameOver = (total === 64);
         if (isGameOver) {
             const scoreA = mockState.score.A;
             const scoreB = mockState.score.B;
@@ -532,13 +538,13 @@ window.soloEngine = (function() {
         if (shouldNerf()) {
             const hMoves = [];
             const vMoves = [];
-            for (let r = 0; r < 10; r++) {
-                for (let c = 0; c < 9; c++) {
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 8; c++) {
                     if (!mockState.dotBox.hLines[r][c]) hMoves.push({ type: "h", r, c });
                 }
             }
-            for (let r = 0; r < 9; r++) {
-                for (let c = 0; c < 10; c++) {
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 9; c++) {
                     if (!mockState.dotBox.vLines[r][c]) vMoves.push({ type: "v", r, c });
                 }
             }
@@ -694,6 +700,97 @@ window.soloEngine = (function() {
                 triggerBotMove();
             }
         }
+    }
+
+    function handleSoloChatMessage(messageText) {
+        if (typeof messageText !== "string" || !messageText.trim()) return;
+        const text = messageText.trim().substring(0, 150);
+        
+        mockState.chatHistory = mockState.chatHistory || [];
+        mockState.chatHistory.push({
+            sender: "A",
+            senderName: mockState.players.A.name || "You",
+            message: text,
+            timestamp: Date.now()
+        });
+        
+        if (mockState.chatHistory.length > 50) {
+            mockState.chatHistory.shift();
+        }
+        
+        broadcastState();
+        
+        setTimeout(() => {
+            if (!mockState || (mockState.status !== "playing" && mockState.status !== "setup")) return;
+            
+            const botMsg = getBotChatMessage();
+            mockState.chatHistory.push({
+                sender: "B",
+                senderName: mockState.players.B.name,
+                message: botMsg,
+                timestamp: Date.now()
+            });
+            
+            if (mockState.chatHistory.length > 50) {
+                mockState.chatHistory.shift();
+            }
+            
+            broadcastState();
+        }, 800 + Math.random() * 500);
+    }
+    
+    function getBotChatMessage() {
+        const generalTaunts = [
+            "🤖 BEEP BOOP. PREPARE FOR DEFEAT.",
+            "👾 RetroBot is processing... you cannot win.",
+            "🤖 SILLY HUMAN. MY STRATEGY IS FLAWLESS.",
+            "👾 I WAS DESIGNED FOR THIS GAME.",
+            "🤖 DO YOU WANT TO PLAY A GAME?",
+            "👾 CHAT LESS, PLAY MORE!",
+            "🤖 MY ALGORITHMS DETECT A SUB-OPTIMAL MOVE IN YOUR FUTURE.",
+            "👾 BOOP. SYSTEM STABLE. THREAT LEVEL: MINIMAL.",
+            "🤖 HELLO HUMAN. MAY THE BEST BOT WIN.",
+            "👾 PROCESSING... FAILURE IS NOT AN OPTION FOR ME."
+        ];
+        
+        if (mockState.status === "playing") {
+            if (mockState.gameType === "tictactoe") {
+                const filled = mockState.tttBoard.filter(c => c !== null).length;
+                if (filled > 5) return "🤖 THE TIC-TAC-TOE GRID IS ALMOST FULL. I SEE THE OUTCOME!";
+                return "👾 NINE CELLS, SO MANY CHOICES.";
+            }
+            if (mockState.gameType === "bingo") {
+                if (mockState.lines.B >= 4) return "👾 BINGO DUEL MATCH POINT! I AM AT 4 LINES!";
+                if (mockState.lines.A >= 4) return "🤖 WARNING: HUMAN REACHING 5 LINES. CALCULATING EVASIVE MANEUVERS!";
+                return `🤖 STAMPING MY GRID. I HAVE ${mockState.lines.B} LINES SO FAR.`;
+            }
+            if (mockState.gameType === "connect5") {
+                if (mockState.connect5.scores.B >= 4) return "🤖 ONE MORE COMBINATION AND THE GRID IS MINE!";
+                if (mockState.connect5.scores.A >= 4) return "👾 RE-CALCULATING DEFENSIVE PARAMETERS FOR CONNECT 4.";
+                return `🤖 CONNECT 4 STATE: CURRENT SCORE IS ${mockState.connect5.scores.A} TO ${mockState.connect5.scores.B}.`;
+            }
+            if (mockState.gameType === "chopsticks") {
+                if (mockState.chopsticks.A.left === 0 || mockState.chopsticks.A.right === 0) {
+                    return "👾 ONE OF YOUR HANDS IS DOWN. PREPARE FOR THE FINAL BLOW!";
+                }
+                return "🤖 CHOPSTICKS ADDITION ALGORITHMS RUNNING AT 100%.";
+            }
+            if (mockState.gameType === "dotBox") {
+                let claimed = 0;
+                for (let r = 0; r < 8; r++) {
+                    for (let c = 0; c < 8; c++) {
+                        if (mockState.dotBox.boxes[r][c] !== null) claimed++;
+                    }
+                }
+                if (claimed > 40) return "👾 THE BOXES ARE FILLING FAST. THE SCORE IS CLOSE!";
+                return "🤖 MAPPING DOT CONNECTIONS... I SEE ALL VERTICES.";
+            }
+            if (mockState.gameType === "rps") {
+                return "👾 ROCK, PAPER, OR SCISSORS? MY RNG IS SUPERIOR!";
+            }
+        }
+        
+        return generalTaunts[Math.floor(Math.random() * generalTaunts.length)];
     }
 
     return {

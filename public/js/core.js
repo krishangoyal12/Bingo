@@ -119,6 +119,20 @@ const ui = {
     fighterRight: byId("fighterRight"),
     playSoloBtn: byId("playSoloBtn"),
     soloDifficultyWrap: byId("soloDifficultyWrap"),
+    chatToggleBtn: byId("chatToggleBtn"),
+    chatBadge: byId("chatBadge"),
+    chatDrawer: byId("chatDrawer"),
+    closeChatBtn: byId("closeChatBtn"),
+    chatMessages: byId("chatMessages"),
+    chatForm: byId("chatForm"),
+    chatInput: byId("chatInput"),
+    quickChats: byId("quickChats"),
+    emojiToggleBtn: byId("emojiToggleBtn"),
+    emojiPicker: byId("emojiPicker"),
+    stickerToggleBtn: byId("stickerToggleBtn"),
+    stickerPicker: byId("stickerPicker"),
+    customStickerInput: byId("customStickerInput"),
+    sendCustomStickerBtn: byId("sendCustomStickerBtn"),
 };
 
 const localState = {
@@ -146,6 +160,10 @@ let lastCalledCount = 0;
 let lastLineCount = 0;
 let hasShownWinScreen = false;
 let timerAnimFrame = null;
+
+let lastRenderedChatCount = 0;
+let isChatOpen = false;
+let unreadChatCount = 0;
 
 // ── Sound Effects (Premium Audio Design System) ──
 const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
@@ -481,6 +499,77 @@ function sfxHover() {
     playNoiseBurst(0.05, t, 0.015);
 }
 
+function sfxChatReceived() {
+    const ctx = getAudioCtx();
+    const t = ctx.currentTime;
+    playNote(660, 0.12, t, 0.06, "sine");
+    playNote(880, 0.12, t + 0.06, 0.08, "sine");
+}
+
+function sfxSticker() {
+    if (gameSoundsMuted) return;
+    const ctx = getAudioCtx();
+    const t = ctx.currentTime;
+    playNote(523.25, 0.12, t, 0.05, "sine");
+    playNote(659.25, 0.12, t + 0.05, 0.05, "sine");
+    playNote(783.99, 0.12, t + 0.10, 0.05, "sine");
+    playNote(1046.50, 0.15, t + 0.15, 0.18, "sine");
+}
+
+function syncChatHistory(chatHistory) {
+    if (!chatHistory) return;
+    const messagesContainer = ui.chatMessages;
+    if (!messagesContainer) return;
+    
+    if (chatHistory.length < lastRenderedChatCount) {
+        messagesContainer.innerHTML = "";
+        lastRenderedChatCount = 0;
+    }
+    
+    let playedSound = false;
+    for (let i = lastRenderedChatCount; i < chatHistory.length; i++) {
+        const msg = chatHistory[i];
+        const msgEl = document.createElement("div");
+        msgEl.className = `chat-msg ${msg.sender === playerSlot ? "chat-msg--self" : "chat-msg--opp"}`;
+        
+        const senderEl = document.createElement("span");
+        senderEl.className = "chat-msg-sender";
+        senderEl.textContent = msg.senderName;
+        
+        const textEl = document.createElement("span");
+        textEl.className = "chat-msg-text";
+        textEl.textContent = msg.message;
+        
+        const timeEl = document.createElement("span");
+        timeEl.className = "chat-msg-time";
+        const date = new Date(msg.timestamp);
+        timeEl.textContent = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        msgEl.appendChild(senderEl);
+        msgEl.appendChild(textEl);
+        msgEl.appendChild(timeEl);
+        
+        messagesContainer.appendChild(msgEl);
+        
+        if (msg.sender !== playerSlot) {
+            if (!playedSound) {
+                sfxChatReceived();
+                playedSound = true;
+            }
+            if (!isChatOpen) {
+                unreadChatCount++;
+                ui.chatBadge.textContent = String(unreadChatCount);
+                ui.chatBadge.classList.remove("is-hidden");
+            }
+        }
+    }
+    
+    if (chatHistory.length > lastRenderedChatCount) {
+        lastRenderedChatCount = chatHistory.length;
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+}
+
 // Global Event Listeners for Audio
 document.addEventListener("mouseover", (e) => {
     const target = e.target.closest("button, .cell");
@@ -601,12 +690,30 @@ function render() {
         ui.roomCode.textContent = "----";
         ui.youName.textContent = "-";
         ui.readyChip.classList.add("is-hidden");
+        
+        ui.chatToggleBtn.classList.add("is-hidden");
+        ui.chatDrawer.classList.remove("open");
+        isChatOpen = false;
+        unreadChatCount = 0;
+        ui.chatBadge.classList.add("is-hidden");
+        ui.chatBadge.textContent = "0";
+        lastRenderedChatCount = 0;
+        ui.chatMessages.innerHTML = "";
+        ui.emojiPicker.classList.add("is-hidden");
+        ui.stickerPicker.classList.add("is-hidden");
+        
         stopTimerAnimation();
         return;
     }
 
     ui.lobby.classList.add("is-hidden");
     ui.game.classList.remove("is-hidden");
+    
+    if (isChatOpen) {
+        ui.chatToggleBtn.classList.add("is-hidden");
+    } else {
+        ui.chatToggleBtn.classList.remove("is-hidden");
+    }
     if (ui.rpsPanel) ui.rpsPanel.classList.add("is-hidden");
     ui.actionArea.classList.remove("is-hidden");
     ui.disconnectBtn.classList.remove("is-hidden");
@@ -1113,6 +1220,7 @@ function setupSocket() {
         if (roomId !== state.roomId) {
             roomId = state.roomId;
         }
+        syncChatHistory(state.chatHistory);
         render();
     };
     socket.on("state", onState);
@@ -1200,6 +1308,14 @@ function setupSocket() {
         ui.roomInput.value = "";
         render();
         showToast("Opponent left");
+    });
+
+    socket.on("stickerReceived", ({ sender, senderName, emoji }) => {
+        const isSelf = sender === playerSlot;
+        if (window.GameEffects && window.GameEffects.spawnSticker) {
+            window.GameEffects.spawnSticker(emoji, senderName, isSelf);
+        }
+        sfxSticker();
     });
 }
 
@@ -1622,6 +1738,12 @@ async function initVoiceChat() {
     if (peerConnection) return;
     if (voiceInitPromise) return voiceInitPromise;
 
+    // Check if the protocol is secure (WebRTC getUserMedia requires HTTPS or localhost)
+    if (window.location.protocol !== "https:" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+        showToast("Voice chat requires HTTPS (secure context).");
+        console.warn("navigator.mediaDevices is only available in Secure Contexts (HTTPS or localhost).");
+    }
+
     voiceInitPromise = (async () => {
         try {
             console.log("Requesting microphone stream...");
@@ -1676,7 +1798,10 @@ async function initVoiceChat() {
                 console.log("WebRTC: Connection State changed to:", peerConnection.connectionState);
                 if (peerConnection.connectionState === "connected") {
                     showToast("Voice chat connected!");
-                } else if (peerConnection.connectionState === "disconnected" || peerConnection.connectionState === "failed") {
+                } else if (peerConnection.connectionState === "failed") {
+                    showToast("Voice connection failed (TURN server may be required on this network).");
+                    console.error("WebRTC connection failed. This typically happens when one or both players are behind symmetric NATs or strict firewalls. To resolve this, configure a TURN server in the iceServers list.");
+                } else if (peerConnection.connectionState === "disconnected") {
                     showToast("Voice chat disconnected.");
                 }
             };
@@ -1786,6 +1911,167 @@ ui.muteGameBtn.addEventListener("click", () => {
         ui.muteGameBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>';
     } else {
         ui.muteGameBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="icon-on"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>';
+    }
+});
+
+// Chat Toggler
+ui.chatToggleBtn.addEventListener("click", () => {
+    isChatOpen = true;
+    unreadChatCount = 0;
+    ui.chatBadge.classList.add("is-hidden");
+    ui.chatBadge.textContent = "0";
+    ui.chatDrawer.classList.add("open");
+    ui.chatToggleBtn.classList.add("is-hidden");
+    
+    setTimeout(() => {
+        ui.chatMessages.scrollTop = ui.chatMessages.scrollHeight;
+        ui.chatInput.focus();
+    }, 100);
+});
+
+// Chat Closer
+ui.closeChatBtn.addEventListener("click", () => {
+    isChatOpen = false;
+    ui.chatDrawer.classList.remove("open");
+    ui.chatToggleBtn.classList.remove("is-hidden");
+    ui.emojiPicker.classList.add("is-hidden");
+    ui.stickerPicker.classList.add("is-hidden");
+});
+
+// Chat Submit Form
+ui.chatForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = ui.chatInput.value.trim();
+    if (!text) return;
+    
+    if (roomId === "SOLO_ROOM") {
+        if (window.soloEngine && window.soloEngine.handleEvent) {
+            window.soloEngine.handleEvent("sendChatMessage", { message: text });
+        }
+    } else if (socket) {
+        socket.emit("sendChatMessage", { message: text });
+    }
+    
+    ui.chatInput.value = "";
+    ui.chatInput.focus();
+    ui.emojiPicker.classList.add("is-hidden");
+    ui.stickerPicker.classList.add("is-hidden");
+});
+
+// Quick Chat Chips
+ui.quickChats.querySelectorAll(".quick-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+        const text = chip.textContent.trim();
+        if (roomId === "SOLO_ROOM") {
+            if (window.soloEngine && window.soloEngine.handleEvent) {
+                window.soloEngine.handleEvent("sendChatMessage", { message: text });
+            }
+        } else if (socket) {
+            socket.emit("sendChatMessage", { message: text });
+        }
+    });
+});
+
+// Click outside chat box to close on smaller screens
+document.addEventListener("click", (e) => {
+    if (isChatOpen && window.innerWidth <= 768) {
+        if (!ui.chatDrawer.contains(e.target) && !ui.chatToggleBtn.contains(e.target)) {
+            isChatOpen = false;
+            ui.chatDrawer.classList.remove("open");
+            ui.chatToggleBtn.classList.remove("is-hidden");
+            ui.emojiPicker.classList.add("is-hidden");
+            ui.stickerPicker.classList.add("is-hidden");
+        }
+    }
+});
+
+// Emoji Toggler
+ui.emojiToggleBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    ui.emojiPicker.classList.toggle("is-hidden");
+    ui.stickerPicker.classList.add("is-hidden");
+});
+
+// Emoji Items Selection
+ui.emojiPicker.querySelectorAll(".emoji-item").forEach(item => {
+    item.addEventListener("click", () => {
+        const emoji = item.textContent.trim();
+        ui.chatInput.value += emoji;
+        ui.chatInput.focus();
+        ui.emojiPicker.classList.add("is-hidden");
+    });
+});
+
+// Close emoji picker if clicked outside
+document.addEventListener("click", (e) => {
+    if (!ui.emojiPicker.classList.contains("is-hidden")) {
+        if (!ui.emojiPicker.contains(e.target) && !ui.emojiToggleBtn.contains(e.target)) {
+            ui.emojiPicker.classList.add("is-hidden");
+        }
+    }
+});
+
+// Sticker Toggler
+ui.stickerToggleBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    ui.stickerPicker.classList.toggle("is-hidden");
+    ui.emojiPicker.classList.add("is-hidden");
+    ui.customStickerInput.value = ""; // Clear custom input when toggled
+});
+
+// Sticker Items Selection
+ui.stickerPicker.querySelectorAll(".sticker-item").forEach(item => {
+    item.addEventListener("click", () => {
+        const emoji = item.getAttribute("data-emoji") || item.textContent.trim();
+        if (roomId === "SOLO_ROOM") {
+            if (window.GameEffects && window.GameEffects.spawnSticker) {
+                window.GameEffects.spawnSticker(emoji, ui.youName.textContent || "You", true);
+            }
+            sfxSticker();
+        } else if (socket) {
+            socket.emit("sendSticker", { emoji });
+        }
+        ui.stickerPicker.classList.add("is-hidden");
+    });
+});
+
+// Function to send custom sticker
+function sendCustomSticker() {
+    const val = ui.customStickerInput.value.trim();
+    if (!val) return;
+    if (roomId === "SOLO_ROOM") {
+        if (window.GameEffects && window.GameEffects.spawnSticker) {
+            window.GameEffects.spawnSticker(val, ui.youName.textContent || "You", true);
+        }
+        sfxSticker();
+    } else if (socket) {
+        socket.emit("sendSticker", { emoji: val });
+    }
+    ui.customStickerInput.value = "";
+    ui.stickerPicker.classList.add("is-hidden");
+}
+
+// Send button click
+ui.sendCustomStickerBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    sendCustomSticker();
+});
+
+// Keypress Enter inside custom input
+ui.customStickerInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+        e.preventDefault();
+        e.stopPropagation();
+        sendCustomSticker();
+    }
+});
+
+// Close sticker picker if clicked outside
+document.addEventListener("click", (e) => {
+    if (!ui.stickerPicker.classList.contains("is-hidden")) {
+        if (!ui.stickerPicker.contains(e.target) && !ui.stickerToggleBtn.contains(e.target) && !ui.customStickerInput.contains(e.target)) {
+            ui.stickerPicker.classList.add("is-hidden");
+        }
     }
 });
 

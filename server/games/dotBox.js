@@ -2,8 +2,8 @@ function checkDotBoxWin(dotBox) {
     let totalBoxes = 0;
     let countA = 0;
     let countB = 0;
-    for (let r = 0; r < 9; r++) {
-        for (let c = 0; c < 9; c++) {
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
             if (dotBox.boxes[r][c] !== null) {
                 totalBoxes++;
                 if (dotBox.boxes[r][c] === "A") countA++;
@@ -12,7 +12,7 @@ function checkDotBoxWin(dotBox) {
         }
     }
     
-    if (totalBoxes === 81) {
+    if (totalBoxes === 64) {
         if (countA > countB) return "A";
         if (countB > countA) return "B";
         return "TIE";
@@ -41,12 +41,12 @@ function registerDotBoxEvents(io, socket, rooms, broadcastState, startTurnTimer,
 
         let isValid = false;
         if (type === "h") {
-            if (r >= 0 && r < 10 && c >= 0 && c < 9 && !state.hLines[r][c]) {
+            if (r >= 0 && r < 9 && c >= 0 && c < 8 && !state.hLines[r][c]) {
                 state.hLines[r][c] = true;
                 isValid = true;
             }
         } else if (type === "v") {
-            if (r >= 0 && r < 9 && c >= 0 && c < 10 && !state.vLines[r][c]) {
+            if (r >= 0 && r < 8 && c >= 0 && c < 9 && !state.vLines[r][c]) {
                 state.vLines[r][c] = true;
                 isValid = true;
             }
@@ -57,12 +57,15 @@ function registerDotBoxEvents(io, socket, rooms, broadcastState, startTurnTimer,
             return;
         }
 
+        // Save last move
+        state.lastMove = { type, r, c, player: slot, timestamp: Date.now() };
+
         // Check for completed boxes
         let boxesCompleted = 0;
 
         // Helper to check a box
         const checkBox = (br, bc) => {
-            if (br < 0 || br >= 9 || bc < 0 || bc >= 9) return false;
+            if (br < 0 || br >= 8 || bc < 0 || bc >= 8) return false;
             if (state.boxes[br][bc] !== null) return false; // already claimed
 
             if (state.hLines[br][bc] && state.hLines[br + 1][bc] &&
@@ -97,6 +100,7 @@ function registerDotBoxEvents(io, socket, rooms, broadcastState, startTurnTimer,
         const winResult = checkDotBoxWin(state);
         if (winResult) {
             room.status = "finished";
+            room.winner = winResult;
             clearTurnTimer(room);
         }
 

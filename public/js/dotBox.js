@@ -35,8 +35,8 @@ function renderDotBoxBoard() {
 
     // Check for new boxes and score changes for animation
     if (lastDotBoxState) {
-        for (let r = 0; r < 9; r++) {
-            for (let c = 0; c < 9; c++) {
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
                 if (state.boxes[r][c] !== null && lastDotBoxState.boxes[r][c] === null) {
                     if (state.boxes[r][c] === playerSlot) {
                         sfxLineComplete();
@@ -54,30 +54,57 @@ function renderDotBoxBoard() {
         buildDotBoxGrid();
     }
 
+    // Determine if the last move highlight is active (opponent's move, < 10 seconds ago)
+    if (window.dotBoxHighlightTimeout) {
+        clearTimeout(window.dotBoxHighlightTimeout);
+        window.dotBoxHighlightTimeout = null;
+    }
+
+    const lastMove = state.lastMove;
+    let highlightType = null;
+    let highlightR = -1;
+    let highlightC = -1;
+
+    if (lastMove && lastMove.player !== playerSlot && serverState.status === "playing") {
+        const elapsed = Date.now() - lastMove.timestamp;
+        if (elapsed < 10000) {
+            highlightType = lastMove.type;
+            highlightR = lastMove.r;
+            highlightC = lastMove.c;
+            
+            // Schedule a re-render to clear the highlight when 10 seconds expire
+            window.dotBoxHighlightTimeout = setTimeout(() => {
+                renderDotBoxBoard();
+            }, 10000 - elapsed);
+        }
+    }
+
     // Update lines
-    for (let r = 0; r < 10; r++) {
-        for (let c = 0; c < 9; c++) {
+    for (let r = 0; r < 9; r++) {
+        for (let c = 0; c < 8; c++) {
             const line = document.getElementById(`box-h-${r}-${c}`);
             if (line) {
                 line.classList.toggle("claimed", !!state.hLines[r][c]);
                 line.classList.toggle("interactable", !state.hLines[r][c] && isYourTurn && serverState.status === "playing");
+                line.classList.toggle("opp-last-move", highlightType === "h" && highlightR === r && highlightC === c);
             }
         }
     }
 
-    for (let r = 0; r < 9; r++) {
-        for (let c = 0; c < 10; c++) {
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 9; c++) {
             const line = document.getElementById(`box-v-${r}-${c}`);
             if (line) {
                 line.classList.toggle("claimed", !!state.vLines[r][c]);
                 line.classList.toggle("interactable", !state.vLines[r][c] && isYourTurn && serverState.status === "playing");
+                line.classList.toggle("opp-last-move", highlightType === "v" && highlightR === r && highlightC === c);
             }
         }
     }
 
     // Update boxes
-    for (let r = 0; r < 9; r++) {
-        for (let c = 0; c < 9; c++) {
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
             const box = document.getElementById(`box-c-${r}-${c}`);
             if (box) {
                 if (state.boxes[r][c] === "A") {
@@ -102,9 +129,9 @@ function renderDotBoxBoard() {
 function buildDotBoxGrid() {
     ui.dotboxContainer.innerHTML = "";
     
-    // 19 rows x 19 cols
-    for (let r = 0; r < 19; r++) {
-        for (let c = 0; c < 19; c++) {
+    // 17 rows x 17 cols
+    for (let r = 0; r < 17; r++) {
+        for (let c = 0; c < 17; c++) {
             const isDotRow = r % 2 === 0;
             const isDotCol = c % 2 === 0;
 

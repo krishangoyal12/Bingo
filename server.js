@@ -73,6 +73,10 @@ app.get("/api/turn-credentials", async (req, res) => {
     }
 });
 
+app.get("/api/special-name", (req, res) => {
+    res.json({ specialName: process.env.SPECIAL_NAME || "" });
+});
+
 const SPECIAL_ROOM_ID = process.env.METERED_SPECIAL_ROOM_ID;
 const rooms = new Map();
 const TURN_TIME_MS = 30000; // 30 seconds per turn

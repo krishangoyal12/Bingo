@@ -152,6 +152,7 @@ const localState = {
 
 let lastChopsticksState = null;
 
+
 let sessionId = localStorage.getItem("sessionId");
 if (!sessionId) {
     sessionId = Math.random().toString(36).substring(2, 15);
@@ -1311,20 +1312,49 @@ function setupSocket() {
             // Trigger animated greeting banner once per entry
             if (!hasShownSpecialBanner) {
                 hasShownSpecialBanner = true;
-                const activeUser = localStorage.getItem("displayName") || state.players[playerSlot]?.name || ui.youName.textContent || "Player";
-                ui.specialRoomBanner.innerHTML = `<div>Hi! ${activeUser}</div><div class="banner-sub">Welcome to Volleyball Arena! A space made specially for you with a pinch of your favorite thing</div>`;
-                ui.specialRoomBanner.classList.remove("is-hidden");
-                ui.specialRoomBanner.classList.remove("animate-out");
-                ui.specialRoomBanner.classList.add("animate-in");
-
-                setTimeout(() => {
-                    ui.specialRoomBanner.classList.remove("animate-in");
-                    ui.specialRoomBanner.classList.add("animate-out");
-                    setTimeout(() => {
-                        ui.specialRoomBanner.classList.add("is-hidden");
+                fetch("/api/special-name")
+                    .then(res => res.json())
+                    .then(data => {
+                        const nameToUse = (data.specialName || localStorage.getItem("displayName") || state.players[playerSlot]?.name || ui.youName.textContent || "Player").toUpperCase();
+                        ui.specialRoomBanner.innerHTML = `<div class="special-banner-card">
+                            <div class="banner-icon-wrap">🏐</div>
+                            <div class="banner-title">HI, ${nameToUse}!</div>
+                            <div class="banner-sub">Welcome to Volleyball Arena! A space made specially for you with a pinch of your favorite thing</div>
+                        </div>`;
+                        ui.specialRoomBanner.classList.remove("is-hidden");
                         ui.specialRoomBanner.classList.remove("animate-out");
-                    }, 800);
-                }, 5000); // 5 seconds duration
+                        ui.specialRoomBanner.classList.add("animate-in");
+
+                        setTimeout(() => {
+                            ui.specialRoomBanner.classList.remove("animate-in");
+                            ui.specialRoomBanner.classList.add("animate-out");
+                            setTimeout(() => {
+                                ui.specialRoomBanner.classList.add("is-hidden");
+                                ui.specialRoomBanner.classList.remove("animate-out");
+                            }, 800);
+                        }, 5000); // 5 seconds duration
+                    })
+                    .catch(err => {
+                        console.error("Error fetching special name:", err);
+                        const activeUser = (localStorage.getItem("displayName") || state.players[playerSlot]?.name || ui.youName.textContent || "Player").toUpperCase();
+                        ui.specialRoomBanner.innerHTML = `<div class="special-banner-card">
+                            <div class="banner-icon-wrap">🏐</div>
+                            <div class="banner-title">HI, ${activeUser}!</div>
+                            <div class="banner-sub">Welcome to Volleyball Arena! A space made specially for you with a pinch of your favorite thing</div>
+                        </div>`;
+                        ui.specialRoomBanner.classList.remove("is-hidden");
+                        ui.specialRoomBanner.classList.remove("animate-out");
+                        ui.specialRoomBanner.classList.add("animate-in");
+
+                        setTimeout(() => {
+                            ui.specialRoomBanner.classList.remove("animate-in");
+                            ui.specialRoomBanner.classList.add("animate-out");
+                            setTimeout(() => {
+                                ui.specialRoomBanner.classList.add("is-hidden");
+                                ui.specialRoomBanner.classList.remove("animate-out");
+                            }, 800);
+                        }, 5000); // 5 seconds duration
+                    });
             }
         } else {
             // Restore regular theme if previously in volleyball

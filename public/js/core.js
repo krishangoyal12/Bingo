@@ -1724,6 +1724,8 @@ updateDifficultyUI(localState.botDifficulty);
 // ── WebRTC Voice Chat ──
 let peerConnection = null;
 let localStream = null;
+let audioContext = null;
+let processedStream = null;
 let isMicMuted = false;
 let isDeafened = false;
 let voiceInitPromise = null;
@@ -1784,9 +1786,31 @@ async function initVoiceChat() {
                 track.enabled = !isMicMuted;
             });
             
-            localStream.getTracks().forEach(track => {
-                peerConnection.addTrack(track, localStream);
-            });
+            try {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContextClass({ sampleRate: 48000 }); // RNNoise expects 48kHz
+                
+                console.log("AudioWorklet: Loading RNNoise processor...");
+                await audioContext.audioWorklet.addModule('/js/rnnoise-processor.js', { type: 'module' });
+                
+                const source = audioContext.createMediaStreamSource(localStream);
+                const rnnoiseNode = new AudioWorkletNode(audioContext, 'rnnoise-processor');
+                const destination = audioContext.createMediaStreamDestination();
+                
+                source.connect(rnnoiseNode).connect(destination);
+                processedStream = destination.stream;
+                
+                console.log("AudioWorklet: RNNoise loaded and running. Routing clean stream to WebRTC.");
+                processedStream.getAudioTracks().forEach(track => {
+                    track.enabled = !isMicMuted;
+                    peerConnection.addTrack(track, processedStream);
+                });
+            } catch (workletError) {
+                console.warn("AudioWorklet failed. Falling back to raw microphone stream.", workletError);
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+            }
 
             peerConnection.ontrack = (event) => {
                 console.log("WebRTC: Remote audio track received", event.streams[0]);
@@ -1866,6 +1890,14 @@ function stopVoiceChat() {
     if (localStream) {
         localStream.getTracks().forEach(t => t.stop());
         localStream = null;
+    }
+    if (processedStream) {
+        processedStream.getTracks().forEach(t => t.stop());
+        processedStream = null;
+    }
+    if (audioContext) {
+        audioContext.close().catch(err => console.warn("Failed to close AudioContext:", err));
+        audioContext = null;
     }
     ui.remoteAudio.srcObject = null;
     ui.audioControls.classList.add("is-hidden");

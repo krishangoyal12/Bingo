@@ -245,7 +245,7 @@ window.soloEngine = (function() {
                 roundStartTime: 0,
                 roundDeadline: 0
             };
-            mockState.rpsTargetWins = mockState.rpsTargetWins || 3;
+            mockState.rpsTargetWins = mockState.rpsTargetWins || 6;
         } else if (gameType === "connect5") {
             mockState.connect5 = {
                 board: Array(7).fill(null).map(() => Array(7).fill(null)),

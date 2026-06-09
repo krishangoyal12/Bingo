@@ -3384,3 +3384,19 @@ input[type="text"]:focus {
         height: 36px;
     }
 }
+
+#closeWinnerBtn {
+    cursor: pointer;
+    opacity: 0.6;
+    color: var(--dark, #1A365D);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#closeWinnerBtn:hover {
+    opacity: 1;
+    transform: scale(1.15);
+}
+
+#closeWinnerBtn:active {
+    transform: scale(0.95);
+}

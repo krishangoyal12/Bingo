@@ -251,7 +251,7 @@ io.on("connection", (socket) => {
             },
             rps: null,
             connect5: null,
-            rpsTargetWins: 3, // Best of 5 (first to 3) by default
+            rpsTargetWins: 6, // Best of 11 (first to 6) by default
             score: { A: 0, B: 0 },
             chatHistory: [],
         };

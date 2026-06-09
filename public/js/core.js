@@ -31,6 +31,8 @@ const ui = {
     winnerTitle: byId("winnerTitle"),
     winnerSub: byId("winnerSub"),
     playAgainBtn: byId("playAgainBtn"),
+    closeWinnerBtn: byId("closeWinnerBtn"),
+    headerPlayAgainBtn: byId("headerPlayAgainBtn"),
     layoutList: byId("layoutList"),
     layoutRow: byId("layoutRow"),
     clearLayoutBtn: byId("clearLayoutBtn"),
@@ -1190,7 +1192,15 @@ function render() {
             sfxDefeat();
         }
         ui.winnerOverlay.classList.remove("is-hidden");
-    } else if (serverState.status !== "finished") {
+    }
+
+    if (serverState.status === "finished" && roomId) {
+        ui.headerPlayAgainBtn.classList.remove("is-hidden");
+    } else {
+        ui.headerPlayAgainBtn.classList.add("is-hidden");
+    }
+
+    if (serverState.status !== "finished") {
         hasShownWinScreen = false;
         ui.winnerOverlay.classList.add("is-hidden");
         if (window.GameEffects) window.GameEffects.clear();
@@ -1273,45 +1283,48 @@ function setupSocket() {
                 currentTheme = "volleyball";
                 document.body.setAttribute("data-theme", "volleyball");
 
-                // Show the video toggle FAB immediately in special rooms
-                ui.toggleVideoBtn.classList.remove("is-hidden");
-
-                // Spawn scattered volleyball background icons
-                spawnVolleyballBackground();
-
-                // Swap to Volleyball Quick Chats
-                ui.quickChats.innerHTML = VOLLEYBALL_QUICK_CHATS.map(msg => `<span class="quick-chip">${msg}</span>`).join("");
-
-                // Swap to Volleyball Stickers
-                const stickerItemsHtml = VOLLEYBALL_STICKERS.map(emoji => `<span class="sticker-item" data-emoji="${emoji}">${emoji}</span>`).join("");
-                const customRowHtml = `<div class="custom-sticker-row">
-                    <input type="text" id="customStickerInput" placeholder="Any emoji/text" maxlength="3" autocomplete="off" />
-                    <button type="button" class="btn btn-tiny btn-primary" id="sendCustomStickerBtn"
-                      style="padding: 4px 10px; font-size: 11px; font-weight: 900; box-shadow: 2px 2px 0 0 var(--dark);">Go!</button>
-                  </div>`;
-                ui.stickerPicker.innerHTML = stickerItemsHtml + customRowHtml;
-
-                // Re-bind click event to newly created sendCustomStickerBtn
-                const newSendBtn = document.getElementById("sendCustomStickerBtn");
-                const newCustomInput = document.getElementById("customStickerInput");
-                if (newSendBtn && newCustomInput) {
-                    newSendBtn.addEventListener("click", (e) => {
-                        e.stopPropagation();
-                        sendCustomSticker();
-                    });
-                    newCustomInput.addEventListener("keydown", (e) => {
-                        if (e.key === "Enter") {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            sendCustomSticker();
-                        }
-                    });
-                }
-            }
-
-            // Trigger animated greeting banner once per entry
-            if (!hasShownSpecialBanner) {
-                hasShownSpecialBanner = true;
+                 // Show the video toggle FAB and container immediately in special rooms by default
+                 ui.toggleVideoBtn.classList.remove("is-hidden");
+                 ui.toggleVideoBtn.classList.add("active");
+                 ui.videoContainer.classList.remove("is-hidden");
+ 
+                 // Spawn scattered volleyball background icons
+                 spawnVolleyballBackground();
+ 
+                 // Swap to Volleyball Quick Chats
+                 ui.quickChats.innerHTML = VOLLEYBALL_QUICK_CHATS.map(msg => `<span class="quick-chip">${msg}</span>`).join("");
+ 
+                 // Swap to Volleyball Stickers
+                 const stickerItemsHtml = VOLLEYBALL_STICKERS.map(emoji => `<span class="sticker-item" data-emoji="${emoji}">${emoji}</span>`).join("");
+                 const customRowHtml = `<div class="custom-sticker-row">
+                     <input type="text" id="customStickerInput" placeholder="Any emoji/text" maxlength="3" autocomplete="off" />
+                     <button type="button" class="btn btn-tiny btn-primary" id="sendCustomStickerBtn"
+                       style="padding: 4px 10px; font-size: 11px; font-weight: 900; box-shadow: 2px 2px 0 0 var(--dark);">Go!</button>
+                   </div>`;
+                 ui.stickerPicker.innerHTML = stickerItemsHtml + customRowHtml;
+ 
+                 // Re-bind click event to newly created sendCustomStickerBtn
+                 const newSendBtn = document.getElementById("sendCustomStickerBtn");
+                 const newCustomInput = document.getElementById("customStickerInput");
+                 if (newSendBtn && newCustomInput) {
+                     newSendBtn.addEventListener("click", (e) => {
+                         e.stopPropagation();
+                         sendCustomSticker();
+                     });
+                     newCustomInput.addEventListener("keydown", (e) => {
+                         if (e.key === "Enter") {
+                             e.preventDefault();
+                             e.stopPropagation();
+                             sendCustomSticker();
+                         }
+                     });
+                 }
+             }
+ 
+             // Trigger animated greeting banner once per entry session
+             const bannerSessionKey = `specialBannerShown_${state.roomId || roomId || 'SPEC1'}`;
+             if (!sessionStorage.getItem(bannerSessionKey)) {
+                 sessionStorage.setItem(bannerSessionKey, "true");
                 fetch("/api/special-name")
                     .then(res => res.json())
                     .then(data => {
@@ -1396,7 +1409,6 @@ function setupSocket() {
                     });
                 }
             }
-            hasShownSpecialBanner = false;
         }
 
         if (lastRound !== state.round) {
@@ -1590,6 +1602,13 @@ ui.readyBtn.addEventListener("click", () => {
 });
 
 ui.playAgainBtn.addEventListener("click", () => {
+    if (socket && roomId) {
+        socket.emit("resetGame");
+    }
+});
+
+ui.headerPlayAgainBtn.addEventListener("click", () => {
+    sfxButtonClick();
     if (socket && roomId) {
         socket.emit("resetGame");
     }
@@ -2502,6 +2521,12 @@ window.addEventListener("DOMContentLoaded", () => {
             } else {
                 ui.toggleVideoBtn.classList.add("active");
             }
+        });
+    }
+
+    if (ui.closeWinnerBtn) {
+        ui.closeWinnerBtn.addEventListener("click", () => {
+            ui.winnerOverlay.classList.add("is-hidden");
         });
     }
 

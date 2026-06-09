@@ -493,6 +493,37 @@
       <span class="chat-badge is-hidden" id="chatBadge">0</span>
     </button>
 
+    <!-- Floating Sticker Toggle Button -->
+    <button class="sticker-toggle-fab is-hidden" id="stickerToggleBtn" title="Send Sticker" aria-label="Send Sticker">
+      ✨
+    </button>
+
+    <!-- Sticker Picker Popover -->
+    <div class="sticker-picker is-hidden" id="stickerPicker">
+      <span class="sticker-item" data-emoji="💖">💖</span>
+      <span class="sticker-item" data-emoji="🔥">🔥</span>
+      <span class="sticker-item" data-emoji="🤝">🤝</span>
+      <span class="sticker-item" data-emoji="🤬">🤬</span>
+      <span class="sticker-item" data-emoji="🤣">🤣</span>
+      <span class="sticker-item" data-emoji="😮">😮</span>
+      <span class="sticker-item" data-emoji="👑">👑</span>
+      <span class="sticker-item" data-emoji="👻">👻</span>
+      <span class="sticker-item" data-emoji="💩">💩</span>
+      <span class="sticker-item" data-emoji="💥">💥</span>
+      <span class="sticker-item" data-emoji="👾">👾</span>
+      <span class="sticker-item" data-emoji="💯">💯</span>
+      <span class="sticker-item" data-emoji="🖕">🖕</span>
+      <span class="sticker-item" data-emoji="🎉">🎉</span>
+      <span class="sticker-item" data-emoji="🤡">🤡</span>
+      <span class="sticker-item" data-emoji="💔">💔</span>
+
+      <div class="custom-sticker-row">
+        <input type="text" id="customStickerInput" placeholder="Any emoji/text" maxlength="3" autocomplete="off" />
+        <button type="button" class="btn btn-tiny btn-primary" id="sendCustomStickerBtn"
+          style="padding: 4px 10px; font-size: 11px; font-weight: 900; box-shadow: 2px 2px 0 0 var(--dark);">Go!</button>
+      </div>
+    </div>
+
     <!-- Chat Drawer -->
     <div class="chat-drawer" id="chatDrawer">
       <div class="chat-header">
@@ -530,32 +561,6 @@
         <span class="emoji-item">😎</span>
       </div>
 
-      <!-- Sticker Picker Popover -->
-      <div class="sticker-picker is-hidden" id="stickerPicker">
-        <span class="sticker-item" data-emoji="💖">💖</span>
-        <span class="sticker-item" data-emoji="🔥">🔥</span>
-        <span class="sticker-item" data-emoji="🤝">🤝</span>
-        <span class="sticker-item" data-emoji="🤬">🤬</span>
-        <span class="sticker-item" data-emoji="🤣">🤣</span>
-        <span class="sticker-item" data-emoji="😮">😮</span>
-        <span class="sticker-item" data-emoji="👑">👑</span>
-        <span class="sticker-item" data-emoji="👻">👻</span>
-        <span class="sticker-item" data-emoji="💩">💩</span>
-        <span class="sticker-item" data-emoji="💥">💥</span>
-        <span class="sticker-item" data-emoji="👾">👾</span>
-        <span class="sticker-item" data-emoji="💯">💯</span>
-        <span class="sticker-item" data-emoji="🖕">🖕</span>
-        <span class="sticker-item" data-emoji="🎉">🎉</span>
-        <span class="sticker-item" data-emoji="🤡">🤡</span>
-        <span class="sticker-item" data-emoji="💔">💔</span>
-
-        <div class="custom-sticker-row">
-          <input type="text" id="customStickerInput" placeholder="Any emoji/text" maxlength="3" autocomplete="off" />
-          <button type="button" class="btn btn-tiny btn-primary" id="sendCustomStickerBtn"
-            style="padding: 4px 10px; font-size: 11px; font-weight: 900; box-shadow: 2px 2px 0 0 var(--dark);">Go!</button>
-        </div>
-      </div>
-
       <div class="quick-chats" id="quickChats">
         <span class="quick-chip">GG! 🤝</span>
         <span class="quick-chip">Nice move! 🔥</span>
@@ -568,12 +573,13 @@
       <form class="chat-input-area" id="chatForm">
         <button type="button" class="btn btn-icon" id="emojiToggleBtn" title="Select Emoji"
           style="border-radius: 8px; width: 36px; height: 36px; padding: 0; box-shadow: none; font-size: 16px; flex-shrink: 0; border: 3px solid var(--dark); display: grid; place-items: center; margin-right: 4px;">😊</button>
-        <button type="button" class="btn btn-icon" id="stickerToggleBtn" title="Send Sticker"
-          style="border-radius: 8px; width: 36px; height: 36px; padding: 0; box-shadow: none; font-size: 16px; flex-shrink: 0; border: 3px solid var(--dark); display: grid; place-items: center; margin-right: 4px;">✨</button>
         <input type="text" id="chatInput" placeholder="Type a message..." autocomplete="off" maxlength="150" />
         <button type="submit" class="btn btn-primary" id="sendChatBtn">Send</button>
       </form>
     </div>
+
+    <!-- Chat Backdrop for smaller screens -->
+    <div class="chat-backdrop" id="chatBackdrop"></div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>

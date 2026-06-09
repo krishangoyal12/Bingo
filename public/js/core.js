@@ -133,6 +133,7 @@ const ui = {
     stickerPicker: byId("stickerPicker"),
     customStickerInput: byId("customStickerInput"),
     sendCustomStickerBtn: byId("sendCustomStickerBtn"),
+    chatBackdrop: byId("chatBackdrop"),
 };
 
 const localState = {
@@ -692,6 +693,7 @@ function render() {
         ui.readyChip.classList.add("is-hidden");
         
         ui.chatToggleBtn.classList.add("is-hidden");
+        ui.stickerToggleBtn.classList.add("is-hidden");
         ui.chatDrawer.classList.remove("open");
         isChatOpen = false;
         unreadChatCount = 0;
@@ -711,8 +713,10 @@ function render() {
     
     if (isChatOpen) {
         ui.chatToggleBtn.classList.add("is-hidden");
+        ui.stickerToggleBtn.classList.add("is-hidden");
     } else {
         ui.chatToggleBtn.classList.remove("is-hidden");
+        ui.stickerToggleBtn.classList.remove("is-hidden");
     }
     if (ui.rpsPanel) ui.rpsPanel.classList.add("is-hidden");
     ui.actionArea.classList.remove("is-hidden");
@@ -1734,6 +1738,22 @@ const iceServers = {
     iceCandidatePoolSize: 10
 };
 
+// Fetch TURN server credentials from our backend API
+async function loadTurnCredentials() {
+    try {
+        const res = await fetch("/api/turn-credentials");
+        if (res.ok) {
+            const servers = await res.json();
+            if (Array.isArray(servers) && servers.length > 0) {
+                iceServers.iceServers = servers;
+            }
+        }
+    } catch (err) {
+        console.warn("WebRTC: Failed to fetch TURN credentials, using default Google STUN fallback.", err);
+    }
+}
+loadTurnCredentials();
+
 async function initVoiceChat() {
     if (peerConnection) return;
     if (voiceInitPromise) return voiceInitPromise;
@@ -1922,6 +1942,8 @@ ui.chatToggleBtn.addEventListener("click", () => {
     ui.chatBadge.textContent = "0";
     ui.chatDrawer.classList.add("open");
     ui.chatToggleBtn.classList.add("is-hidden");
+    ui.stickerToggleBtn.classList.add("is-hidden");
+    ui.stickerPicker.classList.add("is-hidden");
     
     setTimeout(() => {
         ui.chatMessages.scrollTop = ui.chatMessages.scrollHeight;
@@ -1934,6 +1956,17 @@ ui.closeChatBtn.addEventListener("click", () => {
     isChatOpen = false;
     ui.chatDrawer.classList.remove("open");
     ui.chatToggleBtn.classList.remove("is-hidden");
+    ui.stickerToggleBtn.classList.remove("is-hidden");
+    ui.emojiPicker.classList.add("is-hidden");
+    ui.stickerPicker.classList.add("is-hidden");
+});
+
+// Chat Backdrop Closer (Mobile)
+ui.chatBackdrop.addEventListener("click", () => {
+    isChatOpen = false;
+    ui.chatDrawer.classList.remove("open");
+    ui.chatToggleBtn.classList.remove("is-hidden");
+    ui.stickerToggleBtn.classList.remove("is-hidden");
     ui.emojiPicker.classList.add("is-hidden");
     ui.stickerPicker.classList.add("is-hidden");
 });
@@ -1975,10 +2008,11 @@ ui.quickChats.querySelectorAll(".quick-chip").forEach(chip => {
 // Click outside chat box to close on smaller screens
 document.addEventListener("click", (e) => {
     if (isChatOpen && window.innerWidth <= 768) {
-        if (!ui.chatDrawer.contains(e.target) && !ui.chatToggleBtn.contains(e.target)) {
+        if (!ui.chatDrawer.contains(e.target) && !ui.chatToggleBtn.contains(e.target) && !ui.stickerToggleBtn.contains(e.target)) {
             isChatOpen = false;
             ui.chatDrawer.classList.remove("open");
             ui.chatToggleBtn.classList.remove("is-hidden");
+            ui.stickerToggleBtn.classList.remove("is-hidden");
             ui.emojiPicker.classList.add("is-hidden");
             ui.stickerPicker.classList.add("is-hidden");
         }
@@ -2007,6 +2041,15 @@ document.addEventListener("click", (e) => {
     if (!ui.emojiPicker.classList.contains("is-hidden")) {
         if (!ui.emojiPicker.contains(e.target) && !ui.emojiToggleBtn.contains(e.target)) {
             ui.emojiPicker.classList.add("is-hidden");
+        }
+    }
+});
+
+// Close sticker picker if clicked outside
+document.addEventListener("click", (e) => {
+    if (!ui.stickerPicker.classList.contains("is-hidden")) {
+        if (!ui.stickerPicker.contains(e.target) && !ui.stickerToggleBtn.contains(e.target)) {
+            ui.stickerPicker.classList.add("is-hidden");
         }
     }
 });

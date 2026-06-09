@@ -1,3 +1,4 @@
+require('dotenv').config();
 const registerBingoEvents = require('./server/games/bingo');
 const registerTTTEvents = require('./server/games/tictactoe');
 const registerChopsticksEvents = require('./server/games/chopsticks');
@@ -19,6 +20,57 @@ const PORT = process.env.PORT || 3000;
 app.use(express.static(path.join(__dirname, 'public')));
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+app.get("/api/turn-credentials", async (req, res) => {
+    try {
+        const apiUrl = process.env.METERED_API_URL;
+        const apiKey = process.env.METERED_API_KEY;
+        if (!apiUrl || !apiKey) {
+            throw new Error("METERED_API_URL or METERED_API_KEY is missing in environment variables.");
+        }
+        const response = await fetch(`${apiUrl}?apiKey=${apiKey}`);
+        if (!response.ok) {
+            throw new Error(`Metered API returned status: ${response.status}`);
+        }
+        const data = await response.json();
+        res.json(data);
+    } catch (error) {
+        console.error("Failed to fetch dynamic TURN credentials:", error.message);
+        // Fallback to static credentials loaded from .env
+        const username = process.env.METERED_STATIC_USERNAME;
+        const credential = process.env.METERED_STATIC_CREDENTIAL;
+        
+        if (username && credential) {
+            res.json([
+                {
+                    urls: "stun:stun.relay.metered.ca:80",
+                },
+                {
+                    urls: "turn:global.relay.metered.ca:80",
+                    username: username,
+                    credential: credential,
+                },
+                {
+                    urls: "turn:global.relay.metered.ca:80?transport=tcp",
+                    username: username,
+                    credential: credential,
+                },
+                {
+                    urls: "turn:global.relay.metered.ca:443",
+                    username: username,
+                    credential: credential,
+                },
+                {
+                    urls: "turns:global.relay.metered.ca:443?transport=tcp",
+                    username: username,
+                    credential: credential,
+                }
+            ]);
+        } else {
+            res.status(500).json({ error: "TURN configuration not set." });
+        }
+    }
 });
 
 const rooms = new Map();

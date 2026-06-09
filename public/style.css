@@ -2566,6 +2566,33 @@ input[type="text"]:focus {
     transform: scale(1) translateY(0);
 }
 
+/* Chat Backdrop for Mobile */
+.chat-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 245;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+
+@media (min-width: 769px) {
+    .chat-backdrop {
+        display: none !important;
+    }
+}
+
+.chat-drawer.open ~ .chat-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+}
+
 /* Chat Header */
 .chat-header {
     display: flex;
@@ -2801,10 +2828,10 @@ input[type="text"]:focus {
 
 /* Sticker Picker styling */
 .sticker-picker {
-    position: absolute;
-    bottom: 110px;
-    left: 12px;
-    right: 12px;
+    position: fixed;
+    bottom: calc(clamp(60px, 10vh, 80px) + 90px);
+    right: 92px;
+    width: 280px;
     background: #FFFFFF;
     border: 3px solid var(--dark);
     border-radius: 12px;
@@ -2815,6 +2842,39 @@ input[type="text"]:focus {
     z-index: 260;
     box-shadow: 4px 4px 0 0 var(--dark);
     animation: emojiPop 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Floating Sticker FAB Toggler */
+.sticker-toggle-fab {
+    position: fixed;
+    bottom: calc(clamp(60px, 10vh, 80px) + 20px);
+    right: 92px;
+    z-index: 240;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--purple-light, #E1BEE7);
+    border: 3px solid var(--dark);
+    box-shadow: 4px 4px 0 0 var(--dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    color: var(--dark);
+    font-size: 24px;
+    user-select: none;
+}
+
+.sticker-toggle-fab:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 0 var(--dark);
+    background: var(--purple-accent-hover, #D1C4E9);
+}
+
+.sticker-toggle-fab:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 0 var(--dark);
 }
 
 .sticker-item {
@@ -2985,6 +3045,23 @@ input[type="text"]:focus {
         transform: scale(1.05);
     }
 }
+
+/* Sticker Responsive Adjustments */
+@media (max-width: 600px) {
+    .sticker-toggle-fab {
+        width: 48px;
+        height: 48px;
+        right: 74px;
+        bottom: calc(clamp(60px, 10vh, 80px) + 16px);
+    }
+    .sticker-picker {
+        right: 16px;
+        left: 16px;
+        width: auto;
+        bottom: calc(clamp(60px, 10vh, 80px) + 75px);
+    }
+}
+
 
 
 

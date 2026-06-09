@@ -73,6 +73,7 @@ app.get("/api/turn-credentials", async (req, res) => {
     }
 });
 
+const SPECIAL_ROOM_ID = process.env.METERED_SPECIAL_ROOM_ID;
 const rooms = new Map();
 const TURN_TIME_MS = 30000; // 30 seconds per turn
 
@@ -130,8 +131,10 @@ function buildState(roomId) {
     const room = rooms.get(roomId);
     const linesA = registerBingoEvents.countLines(room.boards.A, room.called);
     const linesB = registerBingoEvents.countLines(room.boards.B, room.called);
+    const isSpecial = SPECIAL_ROOM_ID && roomId === SPECIAL_ROOM_ID;
     return {
         roomId,
+        isSpecial: !!isSpecial,
         status: room.status,
         turn: room.turn,
         winner: room.winner,
@@ -259,10 +262,42 @@ io.on("connection", (socket) => {
     });
 
     socket.on("joinRoom", ({ roomId, name, sessionId }) => {
-        const room = rooms.get(roomId);
+        let room = rooms.get(roomId);
         if (!room) {
-            socket.emit("errorMessage", "Room not found.");
-            return;
+            if (SPECIAL_ROOM_ID && roomId === SPECIAL_ROOM_ID) {
+                room = {
+                    id: roomId,
+                    players: { A: null, B: null },
+                    boards: { A: null, B: null },
+                    layoutIds: { A: null, B: null },
+                    ready: { A: false, B: false },
+                    called: new Set(),
+                    turn: "A",
+                    status: "setup",
+                    winner: null,
+                    round: 1,
+                    turnTimer: null,
+                    turnDeadline: null,
+                    gameType: "bingo",
+                    tttBoard: Array(9).fill(null),
+                    chopsticks: { A: { left: 1, right: 1 }, B: { left: 1, right: 1 } },
+                    dotBox: {
+                        hLines: Array(9).fill(null).map(() => Array(8).fill(false)),
+                        vLines: Array(8).fill(null).map(() => Array(9).fill(false)),
+                        boxes: Array(8).fill(null).map(() => Array(8).fill(null)),
+                        lastMove: null
+                    },
+                    rps: null,
+                    connect5: null,
+                    rpsTargetWins: 3,
+                    score: { A: 0, B: 0 },
+                    chatHistory: [],
+                };
+                rooms.set(roomId, room);
+            } else {
+                socket.emit("errorMessage", "Room not found.");
+                return;
+            }
         }
         let slot = null;
         if (!room.players.A) slot = "A";

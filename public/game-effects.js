@@ -278,6 +278,7 @@ window.GameEffects = (() => {
         
         const emojiEl = document.createElement("span");
         emojiEl.className = "sticker-popup-emoji";
+        emojiEl.setAttribute("data-emoji", emoji);
         emojiEl.textContent = emoji;
         card.appendChild(emojiEl);
         
@@ -300,6 +301,7 @@ window.GameEffects = (() => {
             for (let i = 0; i < 15; i++) {
                 const reaction = document.createElement("div");
                 reaction.className = "floating-sticker-reaction";
+                reaction.setAttribute("data-emoji", emoji);
                 reaction.textContent = emoji;
                 
                 // Random horizontal positioning, delay, duration and drift

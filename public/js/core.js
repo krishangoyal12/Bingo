@@ -45,6 +45,12 @@ const ui = {
     deafenBtn: byId("deafenBtn"),
     muteGameBtn: byId("muteGameBtn"),
     remoteAudio: byId("remoteAudio"),
+    specialRoomBanner: byId("specialRoomBanner"),
+    volleyballBg: byId("volleyballBg"),
+    videoContainer: byId("videoContainer"),
+    toggleVideoBtn: byId("toggleVideoBtn"),
+    remoteVideo: byId("remoteVideo"),
+    localVideo: byId("localVideo"),
     // Added for Tic Tac Toe:
     gameSelector: byId("gameSelector"),
     btnBingoTab: byId("btnBingoTab"),
@@ -521,37 +527,37 @@ function syncChatHistory(chatHistory) {
     if (!chatHistory) return;
     const messagesContainer = ui.chatMessages;
     if (!messagesContainer) return;
-    
+
     if (chatHistory.length < lastRenderedChatCount) {
         messagesContainer.innerHTML = "";
         lastRenderedChatCount = 0;
     }
-    
+
     let playedSound = false;
     for (let i = lastRenderedChatCount; i < chatHistory.length; i++) {
         const msg = chatHistory[i];
         const msgEl = document.createElement("div");
         msgEl.className = `chat-msg ${msg.sender === playerSlot ? "chat-msg--self" : "chat-msg--opp"}`;
-        
+
         const senderEl = document.createElement("span");
         senderEl.className = "chat-msg-sender";
         senderEl.textContent = msg.senderName;
-        
+
         const textEl = document.createElement("span");
         textEl.className = "chat-msg-text";
         textEl.textContent = msg.message;
-        
+
         const timeEl = document.createElement("span");
         timeEl.className = "chat-msg-time";
         const date = new Date(msg.timestamp);
         timeEl.textContent = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        
+
         msgEl.appendChild(senderEl);
         msgEl.appendChild(textEl);
         msgEl.appendChild(timeEl);
-        
+
         messagesContainer.appendChild(msgEl);
-        
+
         if (msg.sender !== playerSlot) {
             if (!playedSound) {
                 sfxChatReceived();
@@ -564,7 +570,7 @@ function syncChatHistory(chatHistory) {
             }
         }
     }
-    
+
     if (chatHistory.length > lastRenderedChatCount) {
         lastRenderedChatCount = chatHistory.length;
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -575,7 +581,7 @@ function syncChatHistory(chatHistory) {
 document.addEventListener("mouseover", (e) => {
     const target = e.target.closest("button, .cell");
     if (!target || target.disabled || target.classList.contains("locked") || target.classList.contains("marked")) return;
-    
+
     // Ensure we only play once when entering the element, not when moving inside it
     if (!target.contains(e.relatedTarget)) {
         sfxHover();
@@ -586,7 +592,7 @@ document.addEventListener("click", (e) => {
     const target = e.target;
     // Don't play default click for cells, they have their own logic/sounds
     if (target.closest(".cell")) return;
-    
+
     const btn = target.closest("button");
     if (btn && !btn.disabled) {
         if (btn.id === "readyBtn") {
@@ -679,6 +685,46 @@ const tttCells = [];
 
 function render() {
     if (!serverState || !roomId) {
+        if (currentTheme === "volleyball") {
+            currentTheme = null;
+            document.body.removeAttribute("data-theme");
+            // Hide video toggle FAB & container
+            ui.toggleVideoBtn.classList.add("is-hidden");
+            ui.toggleVideoBtn.classList.remove("active");
+            ui.videoContainer.classList.add("is-hidden");
+            clearVolleyballBackground();
+
+            // Restore default Quick Chats
+            ui.quickChats.innerHTML = ORIGINAL_QUICK_CHATS.map(msg => `<span class="quick-chip">${msg}</span>`).join("");
+
+            // Restore default Stickers
+            const stickerItemsHtml = ORIGINAL_STICKERS.map(emoji => `<span class="sticker-item" data-emoji="${emoji}">${emoji}</span>`).join("");
+            const customRowHtml = `<div class="custom-sticker-row">
+                <input type="text" id="customStickerInput" placeholder="Any emoji/text" maxlength="3" autocomplete="off" />
+                <button type="button" class="btn btn-tiny btn-primary" id="sendCustomStickerBtn"
+                  style="padding: 4px 10px; font-size: 11px; font-weight: 900; box-shadow: 2px 2px 0 0 var(--dark);">Go!</button>
+              </div>`;
+            ui.stickerPicker.innerHTML = stickerItemsHtml + customRowHtml;
+
+            // Re-bind click event to newly created sendCustomStickerBtn
+            const newSendBtn = document.getElementById("sendCustomStickerBtn");
+            const newCustomInput = document.getElementById("customStickerInput");
+            if (newSendBtn && newCustomInput) {
+                newSendBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    sendCustomSticker();
+                });
+                newCustomInput.addEventListener("keydown", (e) => {
+                    if (e.key === "Enter") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        sendCustomSticker();
+                    }
+                });
+            }
+        }
+        hasShownSpecialBanner = false;
+
         ui.lobby.classList.remove("is-hidden");
         ui.game.classList.add("is-hidden");
         ui.gameSelector.classList.add("is-hidden");
@@ -691,7 +737,7 @@ function render() {
         ui.roomCode.textContent = "----";
         ui.youName.textContent = "-";
         ui.readyChip.classList.add("is-hidden");
-        
+
         ui.chatToggleBtn.classList.add("is-hidden");
         ui.stickerToggleBtn.classList.add("is-hidden");
         ui.chatDrawer.classList.remove("open");
@@ -703,14 +749,14 @@ function render() {
         ui.chatMessages.innerHTML = "";
         ui.emojiPicker.classList.add("is-hidden");
         ui.stickerPicker.classList.add("is-hidden");
-        
+
         stopTimerAnimation();
         return;
     }
 
     ui.lobby.classList.add("is-hidden");
     ui.game.classList.remove("is-hidden");
-    
+
     if (isChatOpen) {
         ui.chatToggleBtn.classList.add("is-hidden");
         ui.stickerToggleBtn.classList.add("is-hidden");
@@ -722,16 +768,16 @@ function render() {
     ui.actionArea.classList.remove("is-hidden");
     ui.disconnectBtn.classList.remove("is-hidden");
     ui.infoBtn.classList.remove("is-hidden");
-    
+
     if (serverState.status === "playing") {
         ui.forfeitBtn.classList.remove("is-hidden");
     } else {
         ui.forfeitBtn.classList.add("is-hidden");
         ui.forfeitOverlay.classList.add("is-hidden");
     }
-    
+
     ui.roomCode.textContent = roomId;
- 
+
     const you = playerSlot;
     const opp = you === "A" ? "B" : "A";
     const youInfo = serverState.players?.[you] || {};
@@ -739,7 +785,7 @@ function render() {
 
     ui.youName.textContent = youInfo.name || playerSlot || "-";
     ui.readyChip.textContent = youInfo.ready ? "Ready" : "Not ready";
-    
+
     if (serverState.status === "setup") {
         ui.readyChip.classList.remove("is-hidden");
     } else {
@@ -796,6 +842,14 @@ function render() {
     }
     lastTurn = serverState.turn;
     lastStatus = serverState.status;
+
+    // Re-render background icons when game switches
+    if (window.lastGameType !== serverState.gameType) {
+        window.lastGameType = serverState.gameType;
+        if (currentTheme === "volleyball") {
+            spawnVolleyballBackground();
+        }
+    }
 
     // Toggle panel visibility and Selector active states
     const isPlaying = serverState.status === "playing";
@@ -939,13 +993,13 @@ function render() {
         tttCells.forEach((cell, i) => {
             const val = boardState[i];
             cell.textContent = val ? (val === "A" ? "X" : "O") : "";
-            
+
             // Clean classes
             cell.classList.remove("symbol-x", "symbol-o");
             if (val === "A") cell.classList.add("symbol-x", "ttt-symbol");
             else if (val === "B") cell.classList.add("symbol-o", "ttt-symbol");
             else cell.classList.remove("ttt-symbol");
-            
+
             // Interactive state
             const cellLocked = serverState.status !== "playing" || !isYourTurn || val !== null;
             cell.classList.toggle("locked", cellLocked);
@@ -958,7 +1012,7 @@ function render() {
         ui.tttPlayerOName.textContent = serverState.players?.B?.name || "Player B";
         if (ui.tttPlayerXLabel) ui.tttPlayerXLabel.textContent = "Player X (Starts)";
         if (ui.tttPlayerOLabel) ui.tttPlayerOLabel.textContent = "Player O";
-        
+
         // Highlight active player symbol
         const playerXBadge = ui.tttPlayerXBadge;
         const playerOBadge = ui.tttPlayerOBadge;
@@ -1004,21 +1058,21 @@ function render() {
         ui.nextNumber.closest(".next-number-badge")?.classList.add("is-hidden");
         if (ui.layoutRow) ui.layoutRow.classList.add("is-hidden");
         ui.tttPanel.classList.remove("is-hidden"); // We reuse tttPanel for dotBox!
-        
+
         // Hide tttBoard specifically since we're in dotBox
         ui.tttBoard.classList.add("is-hidden");
-        
+
         // SHOW dotBoxBoard explicitly
         if (ui.dotBoxBoard) ui.dotBoxBoard.classList.remove("is-hidden");
         if (ui.bingoBoard) ui.bingoBoard.classList.add("is-hidden");
         if (ui.chopsticksBoard) ui.chopsticksBoard.classList.add("is-hidden");
-        
+
         // Disable ready button state tracking like tictactoe
         ui.readyBtn.disabled = !!youInfo.ready;
         ui.readyBtn.classList.toggle("is-hidden", serverState.status !== "setup");
         localState.ready = !!youInfo.ready;
         ui.nextNumber.textContent = youInfo.ready ? "done" : "play";
-        
+
         // Turn indicator logic for dotBox is in renderDotBoxBoard (via dotBox.js)
         if (serverState.status === "setup") {
             ui.tttTurnIndicator.textContent = "Tap Ready to start duel";
@@ -1067,14 +1121,14 @@ function render() {
         ui.connect5Panel.classList.remove("is-hidden");
         if (ui.layoutRow) ui.layoutRow.classList.add("is-hidden");
         ui.oppBoardWrap.classList.add("is-hidden");
-        
+
         ui.nextNumber.closest(".next-number-badge")?.classList.add("is-hidden");
-        
+
         ui.readyBtn.disabled = !!youInfo.ready;
         ui.readyBtn.classList.toggle("is-hidden", serverState.status !== "setup");
         localState.ready = !!youInfo.ready;
         ui.nextNumber.textContent = youInfo.ready ? "done" : "play";
-        
+
         if (serverState.status === "setup") {
             ui.c5TurnIndicator.textContent = "Tap Ready to start duel";
             ui.timerBar.classList.add("is-hidden");
@@ -1164,12 +1218,12 @@ function setupSocket() {
         window.socket = socket;
         return;
     }
-    
+
     socket = io();
 
     // Intercept emit for solo room redirect
     const originalEmit = socket.emit;
-    socket.emit = function(event, data) {
+    socket.emit = function (event, data) {
         if (roomId === "SOLO_ROOM" && window.soloEngine) {
             window.soloEngine.handleEvent(event, data);
         } else {
@@ -1211,6 +1265,110 @@ function setupSocket() {
 
     const onState = (state) => {
         serverState = state;
+
+        // Handle Special Room Customizations (Volleyball Theme, Custom Chats/Stickers, Greeting Intro Banner)
+        if (state.isSpecial) {
+            if (currentTheme !== "volleyball") {
+                currentTheme = "volleyball";
+                document.body.setAttribute("data-theme", "volleyball");
+
+                // Show the video toggle FAB immediately in special rooms
+                ui.toggleVideoBtn.classList.remove("is-hidden");
+
+                // Spawn scattered volleyball background icons
+                spawnVolleyballBackground();
+
+                // Swap to Volleyball Quick Chats
+                ui.quickChats.innerHTML = VOLLEYBALL_QUICK_CHATS.map(msg => `<span class="quick-chip">${msg}</span>`).join("");
+
+                // Swap to Volleyball Stickers
+                const stickerItemsHtml = VOLLEYBALL_STICKERS.map(emoji => `<span class="sticker-item" data-emoji="${emoji}">${emoji}</span>`).join("");
+                const customRowHtml = `<div class="custom-sticker-row">
+                    <input type="text" id="customStickerInput" placeholder="Any emoji/text" maxlength="3" autocomplete="off" />
+                    <button type="button" class="btn btn-tiny btn-primary" id="sendCustomStickerBtn"
+                      style="padding: 4px 10px; font-size: 11px; font-weight: 900; box-shadow: 2px 2px 0 0 var(--dark);">Go!</button>
+                  </div>`;
+                ui.stickerPicker.innerHTML = stickerItemsHtml + customRowHtml;
+
+                // Re-bind click event to newly created sendCustomStickerBtn
+                const newSendBtn = document.getElementById("sendCustomStickerBtn");
+                const newCustomInput = document.getElementById("customStickerInput");
+                if (newSendBtn && newCustomInput) {
+                    newSendBtn.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        sendCustomSticker();
+                    });
+                    newCustomInput.addEventListener("keydown", (e) => {
+                        if (e.key === "Enter") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            sendCustomSticker();
+                        }
+                    });
+                }
+            }
+
+            // Trigger animated greeting banner once per entry
+            if (!hasShownSpecialBanner) {
+                hasShownSpecialBanner = true;
+                const activeUser = localStorage.getItem("displayName") || state.players[playerSlot]?.name || ui.youName.textContent || "Player";
+                ui.specialRoomBanner.innerHTML = `<div>Hi! ${activeUser}</div><div class="banner-sub">Welcome to Volleyball Arena! A space made specially for you with a pinch of your favorite thing</div>`;
+                ui.specialRoomBanner.classList.remove("is-hidden");
+                ui.specialRoomBanner.classList.remove("animate-out");
+                ui.specialRoomBanner.classList.add("animate-in");
+
+                setTimeout(() => {
+                    ui.specialRoomBanner.classList.remove("animate-in");
+                    ui.specialRoomBanner.classList.add("animate-out");
+                    setTimeout(() => {
+                        ui.specialRoomBanner.classList.add("is-hidden");
+                        ui.specialRoomBanner.classList.remove("animate-out");
+                    }, 800);
+                }, 5000); // 5 seconds duration
+            }
+        } else {
+            // Restore regular theme if previously in volleyball
+            if (currentTheme === "volleyball") {
+                currentTheme = null;
+                // Hide the video toggle FAB & container
+                ui.toggleVideoBtn.classList.add("is-hidden");
+                ui.toggleVideoBtn.classList.remove("active");
+                ui.videoContainer.classList.add("is-hidden");
+                clearVolleyballBackground();
+                document.body.removeAttribute("data-theme");
+
+                // Restore default Quick Chats
+                ui.quickChats.innerHTML = ORIGINAL_QUICK_CHATS.map(msg => `<span class="quick-chip">${msg}</span>`).join("");
+
+                // Restore default Stickers
+                const stickerItemsHtml = ORIGINAL_STICKERS.map(emoji => `<span class="sticker-item" data-emoji="${emoji}">${emoji}</span>`).join("");
+                const customRowHtml = `<div class="custom-sticker-row">
+                    <input type="text" id="customStickerInput" placeholder="Any emoji/text" maxlength="3" autocomplete="off" />
+                    <button type="button" class="btn btn-tiny btn-primary" id="sendCustomStickerBtn"
+                      style="padding: 4px 10px; font-size: 11px; font-weight: 900; box-shadow: 2px 2px 0 0 var(--dark);">Go!</button>
+                  </div>`;
+                ui.stickerPicker.innerHTML = stickerItemsHtml + customRowHtml;
+
+                // Re-bind click event to newly created sendCustomStickerBtn
+                const newSendBtn = document.getElementById("sendCustomStickerBtn");
+                const newCustomInput = document.getElementById("customStickerInput");
+                if (newSendBtn && newCustomInput) {
+                    newSendBtn.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        sendCustomSticker();
+                    });
+                    newCustomInput.addEventListener("keydown", (e) => {
+                        if (e.key === "Enter") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            sendCustomSticker();
+                        }
+                    });
+                }
+            }
+            hasShownSpecialBanner = false;
+        }
+
         if (lastRound !== state.round) {
             resetLocalBoard();
             lastRound = state.round;
@@ -1236,7 +1394,7 @@ function setupSocket() {
     };
     socket.on("errorMessage", onError);
     window.soloCallbacks["errorMessage"] = onError;
-    
+
     const onBonus = (payload) => {
         const count = payload.count || 1;
         showToast(`BONUS TURN! (+${count})`);
@@ -1260,7 +1418,7 @@ function setupSocket() {
                 await peerConnection.setLocalDescription(answer);
                 console.log("WebRTC socket: Emitting answer...");
                 socket.emit("webrtc-answer", answer);
-                
+
                 console.log(`WebRTC socket: Processing ${pendingIceCandidates.length} buffered ICE candidates...`);
                 pendingIceCandidates.forEach(c => peerConnection.addIceCandidate(new RTCIceCandidate(c)));
                 pendingIceCandidates = [];
@@ -1510,7 +1668,7 @@ ui.btnChopRedistribute.addEventListener("click", () => {
     if (!serverState || serverState.gameType !== "chopsticks" || serverState.status !== "playing") return;
     const you = playerSlot;
     const youHands = serverState.chopsticks[you] || { left: 1, right: 1 };
-    
+
     const options = getRedistributeOptions(youHands.left, youHands.right);
     ui.chopDistributionOptions.innerHTML = "";
     options.forEach(opt => {
@@ -1524,7 +1682,7 @@ ui.btnChopRedistribute.addEventListener("click", () => {
         });
         ui.chopDistributionOptions.appendChild(btn);
     });
-    
+
     ui.chopRedistributeOverlay.classList.remove("is-hidden");
 });
 
@@ -1694,7 +1852,7 @@ function updateDifficultyUI(diff) {
     const medBtn = document.getElementById("btnDiffMedium");
     const hardBtn = document.getElementById("btnDiffHard");
     if (!easyBtn || !medBtn || !hardBtn) return;
-    
+
     easyBtn.classList.toggle("active", diff === "easy");
     medBtn.classList.toggle("active", diff === "medium");
     hardBtn.classList.toggle("active", diff === "hard");
@@ -1720,6 +1878,95 @@ document.querySelectorAll(".btn-difficulty").forEach(btn => {
 
 // Initialize active difficulty UI on load
 updateDifficultyUI(localState.botDifficulty);
+
+// Volleyball theme & banner state variables
+let hasShownSpecialBanner = false;
+let currentTheme = null;
+const VOLLEYBALL_QUICK_CHATS = [
+    "Ace! 🏐",
+    "Nice set! 🙌",
+    "Spiked it! 💥",
+    "Beach duel! 🏖️",
+    "GG! 🤝",
+    "Out of bounds! 😮"
+];
+const ORIGINAL_QUICK_CHATS = [
+    "GG! 🤝",
+    "Nice move! 🔥",
+    "Your turn! ⏳",
+    "Lucky! 🍀",
+    "BINGO! 🎉",
+    "Oh no! 😮"
+];
+const VOLLEYBALL_STICKERS = ["🏐", "🏖️", "🌞", "🥤", "🏅", "💥", "🤝", "🎉"];
+const ORIGINAL_STICKERS = ["💖", "🔥", "🤝", "🤬", "🤣", "😮", "👑", "👻", "💩", "💥", "👾", "💯", "🖕", "🎉", "🤡", "💔"];
+
+// Volleyball background scattered icon assets (all except image.png)
+const VB_BG_ASSETS = [
+    "assets/ball.png",
+    "assets/defend.png",
+    "assets/image2.png",
+    "assets/image3.png",
+    "assets/net.png",
+    "assets/net2.png",
+    "assets/spike.png",
+    "assets/spike2.png"
+];
+
+function spawnVolleyballBackground() {
+    if (!ui.volleyballBg) return;
+    // Clear any existing icons first
+    ui.volleyballBg.innerHTML = "";
+    ui.volleyballBg.classList.remove("is-hidden");
+
+    // Grid-based jitter placement guarantees perfectly even density without clustering
+    const cols = 5;
+    const rows = 4;
+    const cellWidth = 100 / cols;
+    const cellHeight = 100 / rows;
+
+    let iconIndex = 0;
+
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const img = document.createElement("img");
+            img.src = VB_BG_ASSETS[iconIndex % VB_BG_ASSETS.length];
+            iconIndex++;
+            img.className = "vb-icon";
+            img.draggable = false;
+            img.alt = "";
+
+            // Size: 80px to 160px
+            const size = 80 + Math.random() * 80;
+            img.style.width = size + "px";
+            img.style.height = "auto";
+
+            // Base position (center of cell)
+            const baseX = c * cellWidth + (cellWidth / 2);
+            const baseY = r * cellHeight + (cellHeight / 2);
+
+            // Jitter (random offset from center, up to ~60% of cell size)
+            const jitterX = (Math.random() - 0.5) * (cellWidth * 0.6);
+            const jitterY = (Math.random() - 0.5) * (cellHeight * 0.6);
+
+            // Using calc to properly center the image at the target coordinate
+            img.style.left = `calc(${baseX + jitterX}% - ${size / 2}px)`;
+            img.style.top = `calc(${baseY + jitterY}% - ${size / 2}px)`;
+
+            // Random rotation (fixed, no animation)
+            const rotation = Math.floor(Math.random() * 360);
+            img.style.transform = `rotate(${rotation}deg)`;
+
+            ui.volleyballBg.appendChild(img);
+        }
+    }
+}
+
+function clearVolleyballBackground() {
+    if (!ui.volleyballBg) return;
+    ui.volleyballBg.innerHTML = "";
+    ui.volleyballBg.classList.add("is-hidden");
+}
 
 // ── WebRTC Voice Chat ──
 let peerConnection = null;
@@ -1768,60 +2015,109 @@ async function initVoiceChat() {
 
     voiceInitPromise = (async () => {
         try {
-            console.log("Requesting microphone stream...");
-            localStream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true
-                },
-                video: false
-            });
-            
-            console.log("Microphone stream retrieved successfully. Creating RTCPeerConnection...");
+            const isSpecial = serverState && serverState.isSpecial;
+            console.log("Requesting microphone stream (and camera if special room)...");
+
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    },
+                    video: isSpecial ? {
+                        width: { ideal: 320 },
+                        height: { ideal: 240 },
+                        frameRate: { ideal: 15 }
+                    } : false
+                });
+            } catch (mediaErr) {
+                if (isSpecial) {
+                    console.warn("Failed to capture video + audio. Falling back to audio-only.", mediaErr);
+                    localStream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        },
+                        video: false
+                    });
+                } else {
+                    throw mediaErr;
+                }
+            }
+
+            console.log("Media stream retrieved successfully. Creating RTCPeerConnection...");
             peerConnection = new RTCPeerConnection(iceServers);
-            
+
+            // Set local video element if we successfully captured a video track
+            if (isSpecial && localStream.getVideoTracks().length > 0) {
+                ui.localVideo.srcObject = new MediaStream([localStream.getVideoTracks()[0]]);
+                // Show the video container and mark FAB as active
+                ui.videoContainer.classList.remove("is-hidden");
+                ui.toggleVideoBtn.classList.add("active");
+            }
+
             // Apply current mute state to the new stream tracks immediately
             localStream.getAudioTracks().forEach(track => {
                 track.enabled = !isMicMuted;
             });
-            
+
             try {
                 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
                 audioContext = new AudioContextClass({ sampleRate: 48000 }); // RNNoise expects 48kHz
-                
+
                 console.log("AudioWorklet: Loading RNNoise processor...");
                 await audioContext.audioWorklet.addModule('/js/rnnoise-processor.js', { type: 'module' });
-                
+
                 const source = audioContext.createMediaStreamSource(localStream);
                 const rnnoiseNode = new AudioWorkletNode(audioContext, 'rnnoise-processor');
                 const destination = audioContext.createMediaStreamDestination();
-                
+
                 source.connect(rnnoiseNode).connect(destination);
                 processedStream = destination.stream;
-                
+
                 console.log("AudioWorklet: RNNoise loaded and running. Routing clean stream to WebRTC.");
                 processedStream.getAudioTracks().forEach(track => {
                     track.enabled = !isMicMuted;
                     peerConnection.addTrack(track, processedStream);
                 });
+
+                // Also add video track to peer connection if available
+                if (isSpecial && localStream.getVideoTracks().length > 0) {
+                    localStream.getVideoTracks().forEach(track => {
+                        peerConnection.addTrack(track, localStream);
+                    });
+                }
             } catch (workletError) {
-                console.warn("AudioWorklet failed. Falling back to raw microphone stream.", workletError);
+                console.warn("AudioWorklet failed. Falling back to raw stream tracks.", workletError);
                 localStream.getTracks().forEach(track => {
                     peerConnection.addTrack(track, localStream);
                 });
             }
 
             peerConnection.ontrack = (event) => {
-                console.log("WebRTC: Remote audio track received", event.streams[0]);
-                if (ui.remoteAudio.srcObject !== event.streams[0]) {
-                    ui.remoteAudio.srcObject = event.streams[0];
-                    ui.remoteAudio.muted = isDeafened;
-                    ui.remoteAudio.play().then(() => {
-                        console.log("WebRTC: Remote audio playing successfully.");
-                    }).catch(err => {
-                        console.warn("WebRTC: Autoplay prevented or failed. Waiting for user interaction.", err);
-                    });
+                console.log("WebRTC: Remote track received", event);
+                const stream = event.streams[0];
+                if (event.track.kind === 'audio') {
+                    if (ui.remoteAudio.srcObject !== stream) {
+                        ui.remoteAudio.srcObject = stream;
+                        ui.remoteAudio.muted = isDeafened;
+                        ui.remoteAudio.play().then(() => {
+                            console.log("WebRTC: Remote audio playing successfully.");
+                        }).catch(err => {
+                            console.warn("WebRTC: Autoplay prevented or failed. Waiting for user interaction.", err);
+                        });
+                    }
+                } else if (event.track.kind === 'video') {
+                    if (ui.remoteVideo.srcObject !== stream) {
+                        ui.remoteVideo.srcObject = stream;
+                        ui.remoteVideo.play().then(() => {
+                            console.log("WebRTC: Remote video playing successfully.");
+                        }).catch(err => {
+                            console.warn("WebRTC: Remote video play failed:", err);
+                        });
+                    }
                 }
             };
 
@@ -1833,7 +2129,7 @@ async function initVoiceChat() {
                     console.log("WebRTC: Local ICE candidate gathering complete (or null event)");
                 }
             };
-            
+
             peerConnection.onicegatheringstatechange = () => {
                 console.log("WebRTC: ICE Gathering State changed to:", peerConnection.iceGatheringState);
             };
@@ -1853,7 +2149,7 @@ async function initVoiceChat() {
             peerConnection.onsignalingstatechange = () => {
                 console.log("WebRTC: Signaling State changed to:", peerConnection.signalingState);
             };
-            
+
             ui.audioControls.classList.remove("is-hidden");
             voiceDenied = false;
         } catch (err) {
@@ -1900,6 +2196,10 @@ function stopVoiceChat() {
         audioContext = null;
     }
     ui.remoteAudio.srcObject = null;
+    ui.remoteVideo.srcObject = null;
+    ui.localVideo.srcObject = null;
+    ui.videoContainer.classList.add("is-hidden");
+    ui.toggleVideoBtn.classList.remove("active");
     ui.audioControls.classList.add("is-hidden");
     voiceInitPromise = null;
     pendingIceCandidates = [];
@@ -1935,7 +2235,7 @@ ui.muteMicBtn.addEventListener("click", () => {
         });
     }
     ui.muteMicBtn.classList.toggle("muted", isMicMuted);
-    
+
     if (isMicMuted) {
         ui.muteMicBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="icon-off"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>';
     } else {
@@ -1947,7 +2247,7 @@ ui.deafenBtn.addEventListener("click", () => {
     isDeafened = !isDeafened;
     ui.remoteAudio.muted = isDeafened;
     ui.deafenBtn.classList.toggle("muted", isDeafened);
-    
+
     if (isDeafened) {
         ui.deafenBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>';
     } else {
@@ -1958,7 +2258,7 @@ ui.deafenBtn.addEventListener("click", () => {
 ui.muteGameBtn.addEventListener("click", () => {
     gameSoundsMuted = !gameSoundsMuted;
     ui.muteGameBtn.classList.toggle("muted", gameSoundsMuted);
-    
+
     if (gameSoundsMuted) {
         ui.muteGameBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>';
     } else {
@@ -1976,7 +2276,7 @@ ui.chatToggleBtn.addEventListener("click", () => {
     ui.chatToggleBtn.classList.add("is-hidden");
     ui.stickerToggleBtn.classList.add("is-hidden");
     ui.stickerPicker.classList.add("is-hidden");
-    
+
     setTimeout(() => {
         ui.chatMessages.scrollTop = ui.chatMessages.scrollHeight;
         ui.chatInput.focus();
@@ -2008,7 +2308,7 @@ ui.chatForm.addEventListener("submit", (e) => {
     e.preventDefault();
     const text = ui.chatInput.value.trim();
     if (!text) return;
-    
+
     if (roomId === "SOLO_ROOM") {
         if (window.soloEngine && window.soloEngine.handleEvent) {
             window.soloEngine.handleEvent("sendChatMessage", { message: text });
@@ -2016,25 +2316,25 @@ ui.chatForm.addEventListener("submit", (e) => {
     } else if (socket) {
         socket.emit("sendChatMessage", { message: text });
     }
-    
+
     ui.chatInput.value = "";
     ui.chatInput.focus();
     ui.emojiPicker.classList.add("is-hidden");
     ui.stickerPicker.classList.add("is-hidden");
 });
 
-// Quick Chat Chips
-ui.quickChats.querySelectorAll(".quick-chip").forEach(chip => {
-    chip.addEventListener("click", () => {
-        const text = chip.textContent.trim();
-        if (roomId === "SOLO_ROOM") {
-            if (window.soloEngine && window.soloEngine.handleEvent) {
-                window.soloEngine.handleEvent("sendChatMessage", { message: text });
-            }
-        } else if (socket) {
-            socket.emit("sendChatMessage", { message: text });
+// Quick Chat Chips (delegated to support dynamic volleyball replacements)
+ui.quickChats.addEventListener("click", (e) => {
+    const chip = e.target.closest(".quick-chip");
+    if (!chip) return;
+    const text = chip.textContent.trim();
+    if (roomId === "SOLO_ROOM") {
+        if (window.soloEngine && window.soloEngine.handleEvent) {
+            window.soloEngine.handleEvent("sendChatMessage", { message: text });
         }
-    });
+    } else if (socket) {
+        socket.emit("sendChatMessage", { message: text });
+    }
 });
 
 // Click outside chat box to close on smaller screens
@@ -2094,20 +2394,20 @@ ui.stickerToggleBtn.addEventListener("click", (e) => {
     ui.customStickerInput.value = ""; // Clear custom input when toggled
 });
 
-// Sticker Items Selection
-ui.stickerPicker.querySelectorAll(".sticker-item").forEach(item => {
-    item.addEventListener("click", () => {
-        const emoji = item.getAttribute("data-emoji") || item.textContent.trim();
-        if (roomId === "SOLO_ROOM") {
-            if (window.GameEffects && window.GameEffects.spawnSticker) {
-                window.GameEffects.spawnSticker(emoji, ui.youName.textContent || "You", true);
-            }
-            sfxSticker();
-        } else if (socket) {
-            socket.emit("sendSticker", { emoji });
+// Sticker Items Selection (delegated to support dynamic volleyball replacements)
+ui.stickerPicker.addEventListener("click", (e) => {
+    const item = e.target.closest(".sticker-item");
+    if (!item) return;
+    const emoji = item.getAttribute("data-emoji") || item.textContent.trim();
+    if (roomId === "SOLO_ROOM") {
+        if (window.GameEffects && window.GameEffects.spawnSticker) {
+            window.GameEffects.spawnSticker(emoji, ui.youName.textContent || "You", true);
         }
-        ui.stickerPicker.classList.add("is-hidden");
-    });
+        sfxSticker();
+    } else if (socket) {
+        socket.emit("sendSticker", { emoji });
+    }
+    ui.stickerPicker.classList.add("is-hidden");
 });
 
 // Function to send custom sticker
@@ -2162,5 +2462,18 @@ window.addEventListener("DOMContentLoaded", () => {
             }
         }, 100);
     }
+
+    // Toggle Video Container Visibility (FAB always stays visible when active)
+    if (ui.toggleVideoBtn) {
+        ui.toggleVideoBtn.addEventListener("click", () => {
+            const isHidden = ui.videoContainer.classList.toggle("is-hidden");
+            if (isHidden) {
+                ui.toggleVideoBtn.classList.remove("active");
+            } else {
+                ui.toggleVideoBtn.classList.add("active");
+            }
+        });
+    }
+
     render();
 });
